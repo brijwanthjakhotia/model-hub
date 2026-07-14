@@ -4,13 +4,9 @@ import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
 import { getCurrentUser } from "@/lib/auth";
+import { safeRedirect } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Sign in" };
-
-function safeNext(next: string | string[] | undefined) {
-  const v = Array.isArray(next) ? next[0] : next;
-  return v && v.startsWith("/") && !v.startsWith("//") ? v : "/";
-}
 
 export default async function LoginPage({
   searchParams,
@@ -18,7 +14,7 @@ export default async function LoginPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const next = safeNext(sp.next);
+  const next = safeRedirect(sp.next);
   const user = await getCurrentUser();
   if (user) redirect(next);
 

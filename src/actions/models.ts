@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, requireAdmin } from "@/lib/auth";
 import { modelSchema, reviewDecisionSchema } from "@/lib/validations";
-import { slugify } from "@/lib/utils";
+import { parseGalleryUrls, slugify } from "@/lib/utils";
 
 export type ModelFormState = {
   error?: string;
@@ -22,15 +22,6 @@ async function uniqueSlug(name: string) {
     slug = `${base}-${n}`;
   }
   return slug;
-}
-
-function parseGalleryInput(raw: string | undefined): string[] {
-  if (!raw) return [];
-  return raw
-    .split(/[\n,]/)
-    .map((s) => s.trim())
-    .filter((s) => /^https?:\/\//i.test(s))
-    .slice(0, 12);
 }
 
 export async function createModelAction(
@@ -71,7 +62,7 @@ export async function createModelAction(
       instagram: d.instagram || null,
       agencyEmail: d.agencyEmail || null,
       headshotUrl: d.headshotUrl || null,
-      gallery: JSON.stringify(parseGalleryInput(d.gallery)),
+      gallery: JSON.stringify(parseGalleryUrls(d.gallery)),
       status: "PENDING",
       submittedById: user.id,
     },

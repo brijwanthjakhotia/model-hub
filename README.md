@@ -82,6 +82,33 @@ queue (3 profiles start pending).
 | `npm run db:seed` | Seed users, models and reviews                     |
 | `npm run db:reset`| Wipe + recreate + re-seed the database             |
 | `npm run db:studio` | Open Prisma Studio                               |
+| `npm test`        | Run the unit/component test suite                  |
+| `npm run test:watch` | Run tests in watch mode                         |
+| `npm run test:coverage` | Run tests with a coverage report             |
+
+## Testing
+
+Unit and component tests run on **Vitest** + **Testing Library**:
+
+```bash
+npm test              # run once
+npm run test:coverage # with coverage report
+```
+
+The suite has **67 tests** with **100% line coverage** of the `lib` layer
+(utilities, Zod validation, JWT session crypto) plus component tests for the
+rating stars and badges. See [docs/testing.md](docs/testing.md) for details.
+
+## Documentation
+
+Detailed technical docs live in [`docs/`](docs/README.md):
+
+- [Architecture](docs/architecture.md) — stack, rendering model, layout, design decisions
+- [Data model](docs/data-model.md) — schema, relations, the rating cache
+- [Authentication](docs/authentication.md) — sessions, cookies, middleware, roles
+- [Features](docs/features.md) — gallery, profiles, reviews, submission, approval workflow
+- [Server actions & queries](docs/server-actions.md) — every mutation and read
+- [Testing](docs/testing.md) — tooling, coverage, how to add tests
 
 ## Project structure
 

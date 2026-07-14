@@ -23,6 +23,18 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+/** Treat empty form values ("", null, undefined) as "not provided". */
+const emptyToUndefined = (v: unknown) =>
+  v === "" || v === null || v === undefined ? undefined : v;
+
+/** Optional integer field that accepts a blank form value. */
+const optionalInt = (min: number, max: number) =>
+  z.preprocess(emptyToUndefined, z.coerce.number().int().min(min).max(max).optional());
+
+/** Optional decimal field that accepts a blank form value. */
+const optionalFloat = (min: number, max: number) =>
+  z.preprocess(emptyToUndefined, z.coerce.number().min(min).max(max).optional());
+
 export const modelSchema = z.object({
   name: z.string().trim().min(2, "Name is required").max(80),
   category: z.enum(CATEGORIES as unknown as [string, ...string[]], {
@@ -36,15 +48,18 @@ export const modelSchema = z.object({
     .trim()
     .min(40, "Bio should be at least 40 characters")
     .max(1200, "Bio is too long"),
-  heightCm: z.coerce
-    .number()
-    .int()
-    .min(120, "Height seems too low")
-    .max(220, "Height seems too high"),
-  bust: z.coerce.number().int().min(50).max(200).optional().or(z.literal(NaN).transform(() => undefined)),
-  waist: z.coerce.number().int().min(40).max(200).optional().or(z.literal(NaN).transform(() => undefined)),
-  hips: z.coerce.number().int().min(50).max(200).optional().or(z.literal(NaN).transform(() => undefined)),
-  shoeEu: z.coerce.number().min(30).max(52).optional().or(z.literal(NaN).transform(() => undefined)),
+  heightCm: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number({ required_error: "Height is required" })
+      .int()
+      .min(120, "Height seems too low")
+      .max(220, "Height seems too high"),
+  ),
+  bust: optionalInt(50, 200),
+  waist: optionalInt(40, 200),
+  hips: optionalInt(50, 200),
+  shoeEu: optionalFloat(30, 52),
   hairColor: z.enum(HAIR_COLORS as unknown as [string, ...string[]]).optional().or(z.literal("")),
   eyeColor: z.enum(EYE_COLORS as unknown as [string, ...string[]]).optional().or(z.literal("")),
   instagram: z.string().trim().max(60).optional().or(z.literal("")),

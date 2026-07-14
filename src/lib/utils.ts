@@ -89,3 +89,28 @@ export function parseGallery(raw: string | null | undefined): string[] {
 export function pluralize(count: number, singular: string, plural?: string) {
   return count === 1 ? singular : plural ?? `${singular}s`;
 }
+
+/**
+ * Validate a post-auth redirect target, guarding against open redirects.
+ * Only same-origin absolute paths are allowed; anything else falls back.
+ * Rejects protocol-relative (`//host`) and backslash (`/\host`) tricks.
+ */
+export function safeRedirect(value: unknown, fallback = "/"): string {
+  const v = Array.isArray(value) ? value[0] : value;
+  if (typeof v !== "string" || !v.startsWith("/")) return fallback;
+  if (v.startsWith("//") || v.startsWith("/\\")) return fallback;
+  return v;
+}
+
+/**
+ * Parse a newline/comma separated list of image URLs into a clean array,
+ * keeping only http(s) URLs and capping the count.
+ */
+export function parseGalleryUrls(raw: string | undefined | null, max = 12): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter((s) => /^https?:\/\//i.test(s))
+    .slice(0, max);
+}

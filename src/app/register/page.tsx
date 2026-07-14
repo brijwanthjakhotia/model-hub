@@ -4,13 +4,9 @@ import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { RegisterForm } from "@/components/auth/register-form";
 import { getCurrentUser } from "@/lib/auth";
+import { safeRedirect } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Create account" };
-
-function safeNext(next: string | string[] | undefined) {
-  const v = Array.isArray(next) ? next[0] : next;
-  return v && v.startsWith("/") && !v.startsWith("//") ? v : "/";
-}
 
 export default async function RegisterPage({
   searchParams,
@@ -18,7 +14,7 @@ export default async function RegisterPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const next = safeNext(sp.next);
+  const next = safeRedirect(sp.next);
   const user = await getCurrentUser();
   if (user) redirect(next);
 

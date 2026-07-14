@@ -5,18 +5,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession } from "@/lib/auth";
 import { loginSchema, registerSchema } from "@/lib/validations";
+import { safeRedirect } from "@/lib/utils";
 
 export type AuthState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
   values?: Record<string, string>;
 };
-
-function safeNext(next: FormDataEntryValue | null): string {
-  const value = typeof next === "string" ? next : "";
-  // Only allow internal, absolute paths to avoid open-redirects.
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/";
-}
 
 export async function registerAction(
   _prev: AuthState,
@@ -62,7 +57,7 @@ export async function registerAction(
     role: user.role,
   });
 
-  redirect(safeNext(formData.get("next")));
+  redirect(safeRedirect(formData.get("next")));
 }
 
 export async function loginAction(
@@ -98,7 +93,7 @@ export async function loginAction(
     role: user.role,
   });
 
-  redirect(safeNext(formData.get("next")));
+  redirect(safeRedirect(formData.get("next")));
 }
 
 export async function logoutAction() {
