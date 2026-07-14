@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 33% 98%;
+    --foreground: 24 14% 10%;
+
+    --muted: 36 22% 94%;
+    --muted-foreground: 28 7% 42%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 24 14% 10%;
+
+    --border: 32 16% 88%;
+    --input: 32 16% 86%;
+    --ring: 24 12% 14%;
+
+    --primary: 24 12% 12%;
+    --primary-foreground: 40 33% 98%;
+
+    --accent: 28 62% 50%;
+    --accent-foreground: 40 33% 99%;
+
+    --success: 152 46% 38%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 34 86% 46%;
+    --warning-foreground: 24 40% 12%;
+
+    --danger: 2 68% 50%;
+    --danger-foreground: 0 0% 100%;
+
+    --radius: 0.8rem;
+  }
+
+  .dark {
+    --background: 24 12% 8%;
+    --foreground: 40 22% 92%;
+
+    --muted: 24 8% 15%;
+    --muted-foreground: 30 8% 60%;
+
+    --card: 24 10% 11%;
+    --card-foreground: 40 22% 92%;
+
+    --border: 30 6% 20%;
+    --input: 30 6% 24%;
+    --ring: 40 30% 80%;
+
+    --primary: 40 30% 94%;
+    --primary-foreground: 24 12% 10%;
+
+    --accent: 30 68% 56%;
+    --accent-foreground: 24 20% 10%;
+
+    --success: 152 40% 44%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 36 80% 54%;
+    --warning-foreground: 24 40% 10%;
+
+    --danger: 2 66% 56%;
+    --danger-foreground: 0 0% 100%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+
+  ::selection {
+    @apply bg-accent/20;
+  }
+}
+
+@layer components {
+  .container-tight {
+    @apply container max-w-5xl;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-accent;
+  }
+
+  .card-surface {
+    @apply rounded-lg border border-border bg-card text-card-foreground shadow-soft;
+  }
+
+  .focus-ring {
+    @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .link-underline {
+    @apply relative after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-0 after:bg-current after:transition-all hover:after:w-full;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--muted-foreground) / 0.08),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+}

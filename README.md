@@ -1,0 +1,119 @@
+# Muse — Talent Model Hub
+
+A polished, responsive platform for listing and managing modelling talent. Muse
+lets anyone browse a curated gallery of vetted models, view rich editorial
+profiles, leave ratings & reviews, and submit new talent — while admins review
+and approve every submission before it goes live.
+
+Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**,
+**Prisma** + **SQLite**, and a lightweight JWT session auth layer.
+
+---
+
+## Features
+
+- **Model gallery** — responsive grid with live search, and filters by category,
+  gender, experience and sort (featured / top-rated / newest / name). Filter
+  state lives in the URL, so views are shareable.
+- **Editorial profiles** — portrait gallery with lightbox, full stats/measurements,
+  bio, contact links, and a reviews section with a rating distribution.
+- **Ratings & reviews** — signed-in users leave a 1–5★ review (one per model,
+  editable); the model's average rating is kept in sync automatically.
+- **Submission flow** — a multi-section form to submit new talent; submissions
+  start as `PENDING`.
+- **Admin approval workflow** — an admin console with an overview dashboard,
+  an approval queue (approve / reject with a note), and a full roster table
+  (feature toggle, delete).
+- **Role-based auth** — email/password accounts with `USER` and `ADMIN` roles,
+  enforced by middleware and server-side guards.
+- **Light / dark theme** with no flash-of-wrong-theme, elegant fashion-agency
+  typography (Playfair Display + Inter), and graceful image fallbacks.
+
+## Tech stack
+
+| Concern       | Choice                                              |
+| ------------- | --------------------------------------------------- |
+| Framework     | Next.js 15 (App Router, Server Actions)             |
+| Language      | TypeScript                                          |
+| Styling       | Tailwind CSS + CSS variables (light/dark)           |
+| Database      | SQLite via Prisma ORM                               |
+| Auth          | `jose` JWT sessions in httpOnly cookies + `bcryptjs`|
+| Validation    | Zod                                                 |
+| Icons         | lucide-react                                        |
+
+## Getting started
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Create the SQLite database and seed demo data
+npm run db:push
+npm run db:seed
+
+# 3. Run the dev server
+npm run dev
+```
+
+Then open <http://localhost:3000>.
+
+> The `.env` file ships with a working `DATABASE_URL` and a development
+> `AUTH_SECRET`. Replace `AUTH_SECRET` with a strong value before deploying
+> (`openssl rand -base64 32`).
+
+### Demo accounts
+
+| Role  | Email                  | Password    |
+| ----- | ---------------------- | ----------- |
+| Admin | `admin@modelhub.test`  | `admin1234` |
+| User  | `user@modelhub.test`   | `password123` |
+
+Sign in as the admin to access the console at `/admin` and work the approval
+queue (3 profiles start pending).
+
+## Useful scripts
+
+| Script            | Description                                        |
+| ----------------- | -------------------------------------------------- |
+| `npm run dev`     | Start the dev server                               |
+| `npm run build`   | Production build (`prisma generate` + `next build`)|
+| `npm run start`   | Start the production server                         |
+| `npm run db:push` | Sync the Prisma schema to SQLite                   |
+| `npm run db:seed` | Seed users, models and reviews                     |
+| `npm run db:reset`| Wipe + recreate + re-seed the database             |
+| `npm run db:studio` | Open Prisma Studio                               |
+
+## Project structure
+
+```
+src/
+├── app/                 # Routes (App Router)
+│   ├── page.tsx         # Landing page
+│   ├── models/          # Gallery + [slug] profile
+│   ├── submit/          # Submit-talent form
+│   ├── login, register/ # Auth pages
+│   ├── dashboard/       # A user's own submissions
+│   └── admin/           # Console: overview, approvals, roster
+├── actions/             # Server actions (auth, models, reviews)
+├── components/          # UI primitives, layout, models, reviews, admin
+├── lib/                 # prisma, auth/session, queries, validations, utils
+└── middleware.ts        # Route protection for /admin, /submit, /dashboard
+prisma/
+├── schema.prisma        # User, Model, Review
+└── seed.ts              # Demo data
+```
+
+## Data model
+
+- **User** — `name`, `email`, `passwordHash`, `role` (`USER` | `ADMIN`).
+- **Model** — profile fields, physical stats, portfolio gallery (JSON), a
+  denormalised rating cache, and approval metadata (`status`, `reviewNote`,
+  `reviewedBy`, `submittedBy`).
+- **Review** — `rating` (1–5), `title`, `body`; unique per (model, author).
+
+## Notes
+
+- Demo images are pulled from `picsum.photos`; if an image fails to load (e.g.
+  offline) the UI falls back to a deterministic gradient with the model's
+  initials, so the layout never breaks.
+- This is a demo project — the committed `.env` secret is for local use only.
