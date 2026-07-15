@@ -25,7 +25,13 @@ const navLinks = [
   { href: "/#how-it-works", label: "How it works" },
 ];
 
-export function Header({ user }: { user: SessionUser | null }) {
+export function Header({
+  user,
+  isAdmin = false,
+}: {
+  user: SessionUser | null;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,7 +61,7 @@ export function Header({ user }: { user: SessionUser | null }) {
               {link.label}
             </Link>
           ))}
-          {user?.role === "ADMIN" && (
+          {isAdmin && (
             <Link
               href="/admin"
               className={cn(
@@ -99,7 +105,7 @@ export function Header({ user }: { user: SessionUser | null }) {
                   <MenuLink href="/submit" icon={Plus}>
                     Submit talent
                   </MenuLink>
-                  {user.role === "ADMIN" && (
+                  {isAdmin && (
                     <MenuLink href="/admin" icon={Shield}>
                       Admin console
                     </MenuLink>
@@ -170,7 +176,7 @@ export function Header({ user }: { user: SessionUser | null }) {
                 <MobileLink href="/submit" icon={Plus} onClick={() => setMobileOpen(false)}>
                   Submit talent
                 </MobileLink>
-                {user.role === "ADMIN" && (
+                {isAdmin && (
                   <MobileLink href="/admin" icon={Shield} onClick={() => setMobileOpen(false)}>
                     Admin console
                   </MobileLink>

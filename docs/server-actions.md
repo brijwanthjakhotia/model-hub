@@ -9,12 +9,22 @@ All writes are **Server Actions** (`"use server"`); all reads go through the
 
 | Action | Signature | Auth | Validation | Effect |
 | --- | --- | --- | --- | --- |
-| `registerAction` | `(prev, formData) => AuthState` | public | `registerSchema` | Rejects duplicate email; bcrypt-hashes password; creates user; sets session; redirects to `safeRedirect(next)`. |
-| `loginAction` | `(prev, formData) => AuthState` | public | `loginSchema` | Verifies credentials with `bcrypt.compare`; sets session; redirects. Returns a generic error on failure. |
-| `logoutAction` | `() => void` | any | — | Clears the session cookie; redirects to `/`. |
+| `registerAction` | `(prev, formData) => AuthState` | public | `registerSchema` | Rejects duplicate email; bcrypt-hashes password; creates **user**; sets `mh_session`; redirects to `safeRedirect(next)`. |
+| `loginAction` | `(prev, formData) => AuthState` | public | `loginSchema` | Verifies **user** credentials with `bcrypt.compare`; sets `mh_session`; redirects. Returns a generic error on failure. |
+| `logoutAction` | `() => void` | any | — | Clears `mh_session`; redirects to `/`. |
+| `adminLoginAction` | `(prev, formData) => AuthState` | public | `loginSchema` | Verifies credentials against the **`Admin`** table; sets `mh_admin`; redirects to `safeRedirect(next, "/admin")`. |
+| `adminLogoutAction` | `() => void` | any | — | Clears `mh_admin`; redirects to `/admin/login`. |
 
-`AuthState = { error?, fieldErrors?, values? }` is returned to the form via
-`useActionState` when there's nothing to redirect to.
+### Admins — [`src/actions/admins.ts`](../src/actions/admins.ts)
+
+| Action | Signature | Auth | Validation | Effect |
+| --- | --- | --- | --- | --- |
+| `createAdminAction` | `(prev, formData) => AdminFormState` | **super admin** | `createAdminSchema` | Rejects duplicate email; bcrypt-hashes password; creates an `Admin` with the chosen role; revalidates `/admin/admins`. |
+| `deleteAdminAction` | `(formData) => void` | **super admin** | — | Removes an admin; refuses to delete yourself or the last super admin; revalidates `/admin/admins`. |
+
+`AuthState = { error?, fieldErrors?, values? }` (and `AdminFormState`, which adds
+`success?`) is returned to the form via `useActionState` when there's nothing to
+redirect to.
 
 ### Models — [`src/actions/models.ts`](../src/actions/models.ts)
 

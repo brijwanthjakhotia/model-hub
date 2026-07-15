@@ -1,14 +1,19 @@
 # Data model
 
 The schema lives in [`prisma/schema.prisma`](../prisma/schema.prisma) and targets
-SQLite. Three entities — **User**, **Model** (a talent profile) and **Review** —
-plus three enums.
+SQLite. Four entities — **User** (public member), **Admin** (agency staff),
+**Model** (a talent profile) and **Review** — plus three enums.
+
+**User and Admin are deliberately separate tables.** A public member can submit
+talent and write reviews but has no role and no path to admin access; admin
+identity, credentials and roles live entirely in `Admin`. See
+[authentication](./authentication.md) for the two-session design.
 
 ```mermaid
 erDiagram
-  USER ||--o{ MODEL  : "submits"
-  USER ||--o{ MODEL  : "reviews (as admin)"
-  USER ||--o{ REVIEW : "writes"
+  USER  ||--o{ MODEL  : "submits"
+  ADMIN ||--o{ MODEL  : "approves/rejects"
+  USER  ||--o{ REVIEW : "writes"
   MODEL ||--o{ REVIEW : "receives"
 
   USER {
@@ -16,7 +21,15 @@ erDiagram
     string name
     string email UK
     string passwordHash
-    Role   role
+    string avatarUrl
+    datetime createdAt
+  }
+  ADMIN {
+    string id PK
+    string name
+    string email UK
+    string passwordHash
+    AdminRole role
     string avatarUrl
     datetime createdAt
   }
@@ -65,11 +78,11 @@ erDiagram
 
 | Enum | Values |
 | --- | --- |
-| `Role` | `USER`, `ADMIN` |
+| `AdminRole` | `SUPER_ADMIN`, `MODERATOR` |
 | `ModelStatus` | `PENDING`, `APPROVED`, `REJECTED` |
 | `Gender` | `FEMALE`, `MALE`, `NONBINARY` |
 
-## User
+## User (public member)
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -77,16 +90,41 @@ erDiagram
 | `name` | `String` | display name |
 | `email` | `String` | unique; stored lowercased |
 | `passwordHash` | `String` | bcrypt hash (never a plaintext password) |
-| `role` | `Role` | defaults to `USER` |
 | `avatarUrl` | `String?` | optional |
 | `createdAt` | `DateTime` | |
+
+Members have **no role** — the app has no notion of an "admin user". Admin
+access is a separate identity in the `Admin` table.
 
 **Relations**
 
 - `models` — profiles this user submitted (`Model.submittedBy`).
 - `reviews` — reviews this user wrote.
-- `reviewedModels` — profiles this user (an admin) approved/rejected
-  (`Model.reviewedBy`).
+
+## Admin (agency staff)
+
+A distinct table with its own credentials and login. Nothing links an `Admin`
+back to a `User`; they are independent identities.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | `String` | cuid primary key |
+| `name` | `String` | display name |
+| `email` | `String` | unique; stored lowercased |
+| `passwordHash` | `String` | bcrypt hash |
+| `role` | `AdminRole` | defaults to `MODERATOR` |
+| `avatarUrl` | `String?` | optional |
+| `createdAt` | `DateTime` | |
+
+**Roles**
+
+- `MODERATOR` — approve/reject submissions, feature and remove profiles.
+- `SUPER_ADMIN` — everything a moderator can do, **plus** manage the admin list
+  (create/remove admins) at `/admin/admins`.
+
+**Relations**
+
+- `reviewedModels` — profiles this admin approved/rejected (`Model.reviewedBy`).
 
 ## Model (talent profile)
 
@@ -101,7 +139,7 @@ The central entity. Fields fall into five groups:
 - **Ratings cache:** `ratingAvg` and `ratingCount`, kept in sync on every review
   write (see below).
 - **Workflow metadata:** `status`, `featured`, `reviewNote`, `reviewedAt`,
-  `reviewedById`, `submittedById`.
+  `reviewedById` (→ `Admin`), `submittedById` (→ `User`).
 
 **Indexes:** `@@index([status])` and `@@index([category])` — the two columns the
 gallery and admin queries filter on most.
@@ -144,11 +182,13 @@ The seed script performs the same computation so seeded data starts consistent.
 
 ## Seed data
 
-[`prisma/seed.ts`](../prisma/seed.ts) is idempotent (it clears the three tables
+[`prisma/seed.ts`](../prisma/seed.ts) is idempotent (it clears all four tables
 first) and creates:
 
-- 4 users — 1 admin, 3 regular (a casting director, a photographer, a general
-  user) used as review authors.
+- 2 admins — 1 `SUPER_ADMIN` and 1 `MODERATOR` (the moderator is recorded as the
+  reviewer on approved/rejected profiles).
+- 3 users — a casting director, a photographer and a general user, used as
+  review authors.
 - 13 talent profiles — 9 approved (several featured), 3 pending, 1 rejected
   (with an admin note), across all categories/genders.
 - 16 reviews, with the rating cache filled in.

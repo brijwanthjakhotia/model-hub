@@ -24,10 +24,14 @@ start, see the root [README](../README.md).
 - **Validation:** Zod
 - **Testing:** Vitest + Testing Library (67 tests, 100% line coverage of the `lib` layer)
 
-## Roles
+## Principals & roles
 
-| Role | Capabilities |
+Members (`User`) and admins (`Admin`) are separate identities with separate
+logins — see [authentication](./authentication.md).
+
+| Principal | Capabilities |
 | --- | --- |
 | Anonymous | Browse the gallery and profiles, read reviews |
-| `USER` | Everything above + submit talent, write/update reviews, view own submissions |
-| `ADMIN` | Everything above + approval queue, feature/delete talent, dashboards |
+| Member (`User`) | Everything above + submit talent, write/update reviews, view own submissions |
+| Admin · `MODERATOR` | Approval queue, feature/delete talent, dashboards |
+| Admin · `SUPER_ADMIN` | Everything a moderator can do + manage admin accounts |

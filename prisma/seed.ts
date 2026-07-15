@@ -1,4 +1,4 @@
-import { PrismaClient, Gender, ModelStatus, Role } from "@prisma/client";
+import { PrismaClient, Gender, ModelStatus, AdminRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -322,30 +322,42 @@ const REVIEWS: Record<string, { rating: number; title: string; body: string; by:
 async function main() {
   console.log("🌱  Seeding database…");
 
-  // Wipe existing data (idempotent seed)
+  // Wipe existing data (idempotent seed). Reviews and models first because
+  // Model.reviewedBy references Admin.
   await prisma.review.deleteMany();
   await prisma.model.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.admin.deleteMany();
 
   const passwordHash = await bcrypt.hash("password123", 10);
-  const adminHash = await bcrypt.hash("admin1234", 10);
 
-  const admin = await prisma.user.create({
+  // Admins live in their own table with their own credentials.
+  const superAdmin = await prisma.admin.create({
     data: {
-      name: "Agency Admin",
-      email: "admin@modelhub.test",
-      passwordHash: adminHash,
-      role: Role.ADMIN,
-      avatarUrl: img("adminavatar", 200, 200),
+      name: "Agency Owner",
+      email: "super@modelhub.test",
+      passwordHash: await bcrypt.hash("superadmin1", 10),
+      role: AdminRole.SUPER_ADMIN,
+      avatarUrl: img("superadminavatar", 200, 200),
     },
   });
 
+  const moderator = await prisma.admin.create({
+    data: {
+      name: "Roster Moderator",
+      email: "mod@modelhub.test",
+      passwordHash: await bcrypt.hash("moderator1", 10),
+      role: AdminRole.MODERATOR,
+      avatarUrl: img("moderatoravatar", 200, 200),
+    },
+  });
+
+  // Public members: submit talent and leave reviews. No role — no admin access.
   const casting = await prisma.user.create({
     data: {
       name: "Casting Director",
       email: "casting@modelhub.test",
       passwordHash,
-      role: Role.USER,
       avatarUrl: img("castingavatar", 200, 200),
     },
   });
@@ -355,7 +367,6 @@ async function main() {
       name: "Studio Photographer",
       email: "photographer@modelhub.test",
       passwordHash,
-      role: Role.USER,
       avatarUrl: img("photoavatar", 200, 200),
     },
   });
@@ -365,7 +376,6 @@ async function main() {
       name: "Jordan Rivera",
       email: "user@modelhub.test",
       passwordHash,
-      role: Role.USER,
       avatarUrl: img("user1avatar", 200, 200),
     },
   });
@@ -405,7 +415,7 @@ async function main() {
         reviewNote: m.reviewNote,
         reviewedById:
           m.status === ModelStatus.APPROVED || m.status === ModelStatus.REJECTED
-            ? admin.id
+            ? moderator.id
             : undefined,
         reviewedAt:
           m.status === ModelStatus.APPROVED || m.status === ModelStatus.REJECTED
@@ -440,6 +450,7 @@ async function main() {
   }
 
   const counts = {
+    admins: await prisma.admin.count(),
     users: await prisma.user.count(),
     models: await prisma.model.count(),
     reviews: await prisma.review.count(),
@@ -447,9 +458,11 @@ async function main() {
   };
 
   console.log("✅  Seed complete:", counts);
-  console.log("\nLogin credentials:");
-  console.log("  Admin  →  admin@modelhub.test / admin1234");
-  console.log("  User   →  user@modelhub.test  / password123");
+  console.log("\nAdmin console (/admin/login):");
+  console.log(`  Super admin →  ${superAdmin.email} / superadmin1`);
+  console.log(`  Moderator   →  ${moderator.email} / moderator1`);
+  console.log("\nMember login (/login):");
+  console.log("  User        →  user@modelhub.test / password123");
 }
 
 main()

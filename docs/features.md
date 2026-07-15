@@ -82,13 +82,16 @@ the sort option.
 
 ## 6. Admin approval workflow
 
-**Routes:** `/admin`, `/admin/approvals`, `/admin/models` (admin required)
+**Routes:** `/admin`, `/admin/approvals`, `/admin/models` (any admin);
+`/admin/admins` (super admin) — admins sign in at `/admin/login`
 **Files:** [`app/admin/*`](../src/app/admin), `components/admin/*`,
 `decideModelAction` / `toggleFeaturedAction` / `deleteModelAction` in
 [`actions/models.ts`](../src/actions/models.ts)
 
-The headline feature. The admin console (guarded by `requireAdmin` in the admin
-layout) has three tabs:
+The headline feature. The admin console — a separate identity from public
+members (see [authentication](./authentication.md)), guarded by `requireAdmin`
+in the `(console)` layout — has three tabs for every admin, plus an **Admins**
+tab for super admins:
 
 - **Overview** — stat cards (pending / approved / rejected / reviews) and a
   preview of the pending queue.

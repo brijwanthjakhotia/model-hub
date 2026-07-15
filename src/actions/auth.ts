@@ -3,7 +3,12 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { createSession, destroySession } from "@/lib/auth";
+import {
+  createSession,
+  destroySession,
+  createAdminSession,
+  destroyAdminSession,
+} from "@/lib/auth";
 import { loginSchema, registerSchema } from "@/lib/validations";
 import { safeRedirect } from "@/lib/utils";
 
@@ -54,7 +59,6 @@ export async function registerAction(
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role,
   });
 
   redirect(safeRedirect(formData.get("next")));
@@ -90,7 +94,6 @@ export async function loginAction(
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role,
   });
 
   redirect(safeRedirect(formData.get("next")));
@@ -99,4 +102,52 @@ export async function loginAction(
 export async function logoutAction() {
   await destroySession();
   redirect("/");
+}
+
+/* -------------------------------------------------------------------------- */
+/* Admin auth (separate Admin table + cookie)                                 */
+/* -------------------------------------------------------------------------- */
+
+export async function adminLoginAction(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const raw = {
+    email: String(formData.get("email") ?? ""),
+    password: String(formData.get("password") ?? ""),
+  };
+  const parsed = loginSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      fieldErrors: parsed.error.flatten().fieldErrors,
+      values: { email: raw.email },
+    };
+  }
+
+  const admin = await prisma.admin.findUnique({
+    where: { email: parsed.data.email },
+  });
+  if (
+    !admin ||
+    !(await bcrypt.compare(parsed.data.password, admin.passwordHash))
+  ) {
+    return {
+      error: "Invalid email or password.",
+      values: { email: raw.email },
+    };
+  }
+
+  await createAdminSession({
+    id: admin.id,
+    name: admin.name,
+    email: admin.email,
+    role: admin.role,
+  });
+
+  redirect(safeRedirect(formData.get("next"), "/admin"));
+}
+
+export async function adminLogoutAction() {
+  await destroyAdminSession();
+  redirect("/admin/login");
 }

@@ -12,7 +12,7 @@ is a self-contained JWT-cookie layer.
 flowchart LR
   Browser -->|HTTP| MW[middleware.ts]
   MW -->|allowed| RSC[Server Component page]
-  MW -->|no session / wrong role| Redirect[redirect to /login or /]
+  MW -->|no session / wrong role| Redirect[redirect to /login or /admin/login]
   RSC --> Q[lib/queries.ts]
   Q --> Prisma[(Prisma / SQLite)]
   Browser -->|form submit| SA[Server Action]
@@ -51,13 +51,17 @@ src/
 │   ├── login/page.tsx
 │   ├── register/page.tsx
 │   ├── dashboard/page.tsx    # A user's own submissions (auth required)
-│   └── admin/                # Admin console (admin required)
-│       ├── layout.tsx        # Guard + tab nav + stats
-│       ├── page.tsx          # Overview
-│       ├── approvals/page.tsx# Approval queue
-│       └── models/page.tsx   # Roster table
+│   └── admin/
+│       ├── login/page.tsx    # Admin sign in (public — outside the guard)
+│       └── (console)/        # Admin console (admin session required)
+│           ├── layout.tsx    # Guard + identity + tab nav + stats
+│           ├── page.tsx      # Overview
+│           ├── approvals/page.tsx  # Approval queue
+│           ├── models/page.tsx     # Roster table
+│           └── admins/page.tsx     # Manage admins (super admin only)
 ├── actions/                  # Server actions (write operations)
-│   ├── auth.ts               # register / login / logout
+│   ├── auth.ts               # register / login / logout / admin login+logout
+│   ├── admins.ts             # create / delete admin (super admin)
 │   ├── models.ts             # create / decide / feature / delete
 │   └── reviews.ts            # add/update review + rating recompute
 ├── components/

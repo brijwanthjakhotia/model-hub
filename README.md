@@ -24,8 +24,10 @@ Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**,
 - **Admin approval workflow** — an admin console with an overview dashboard,
   an approval queue (approve / reject with a note), and a full roster table
   (feature toggle, delete).
-- **Role-based auth** — email/password accounts with `USER` and `ADMIN` roles,
-  enforced by middleware and server-side guards.
+- **Separate admin auth** — agency staff live in their own `Admin` table with a
+  dedicated `/admin/login` and their own session cookie, fully isolated from
+  public member accounts. Admin roles (`SUPER_ADMIN`, `MODERATOR`) are enforced
+  by middleware and server-side guards.
 - **Light / dark theme** with no flash-of-wrong-theme, elegant fashion-agency
   typography (Playfair Display + Inter), and graceful image fallbacks.
 
@@ -63,13 +65,17 @@ Then open <http://localhost:3000>.
 
 ### Demo accounts
 
-| Role  | Email                  | Password    |
-| ----- | ---------------------- | ----------- |
-| Admin | `admin@modelhub.test`  | `admin1234` |
-| User  | `user@modelhub.test`   | `password123` |
+Admins sign in at `/admin/login`; members sign in at `/login`.
 
-Sign in as the admin to access the console at `/admin` and work the approval
-queue (3 profiles start pending).
+| Kind             | Email                   | Password       |
+| ---------------- | ----------------------- | -------------- |
+| Admin · super    | `super@modelhub.test`   | `superadmin1`  |
+| Admin · moderator| `mod@modelhub.test`     | `moderator1`   |
+| Member           | `user@modelhub.test`    | `password123`  |
+
+Sign in as an admin to access the console at `/admin` and work the approval
+queue (3 profiles start pending). The **super admin** additionally sees an
+**Admins** tab to create and remove console accounts.
 
 ## Useful scripts
 
@@ -126,13 +132,15 @@ src/
 ├── lib/                 # prisma, auth/session, queries, validations, utils
 └── middleware.ts        # Route protection for /admin, /submit, /dashboard
 prisma/
-├── schema.prisma        # User, Model, Review
+├── schema.prisma        # User, Admin, Model, Review
 └── seed.ts              # Demo data
 ```
 
 ## Data model
 
-- **User** — `name`, `email`, `passwordHash`, `role` (`USER` | `ADMIN`).
+- **User** — public member: `name`, `email`, `passwordHash`. No role.
+- **Admin** — agency staff (separate table): `name`, `email`, `passwordHash`,
+  `role` (`SUPER_ADMIN` | `MODERATOR`).
 - **Model** — profile fields, physical stats, portfolio gallery (JSON), a
   denormalised rating cache, and approval metadata (`status`, `reviewNote`,
   `reviewedBy`, `submittedBy`).

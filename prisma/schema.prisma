@@ -7,9 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  USER
-  ADMIN
+enum AdminRole {
+  SUPER_ADMIN
+  MODERATOR
 }
 
 enum ModelStatus {
@@ -24,17 +24,31 @@ enum Gender {
   NONBINARY
 }
 
+/// Public site accounts: browse, submit talent and leave reviews.
+/// Admin access lives in a separate `Admin` table (see below).
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
-  role         Role     @default(USER)
   avatarUrl    String?
   createdAt    DateTime @default(now())
 
   models       Model[]  @relation("SubmittedModels")
   reviews      Review[]
+}
+
+/// Agency staff who sign in to the admin console. Fully separate from `User`:
+/// distinct credentials, distinct login (`/admin/login`) and distinct session
+/// cookie, so a public account can never gain admin access.
+model Admin {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(MODERATOR)
+  avatarUrl    String?
+  createdAt    DateTime  @default(now())
 
   reviewedModels Model[] @relation("ReviewedBy")
 }
@@ -76,7 +90,7 @@ model Model {
   reviewNote  String?
   reviewedAt  DateTime?
   reviewedById String?
-  reviewedBy   User?      @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedBy   Admin?     @relation("ReviewedBy", fields: [reviewedById], references: [id])
 
   submittedById String?
   submittedBy   User?     @relation("SubmittedModels", fields: [submittedById], references: [id])

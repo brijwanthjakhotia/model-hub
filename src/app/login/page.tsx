@@ -41,9 +41,14 @@ export default async function LoginPage({
         </div>
 
         <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/30 p-4 text-xs text-muted-foreground">
-          <p className="mb-1 font-semibold text-foreground">Demo accounts</p>
-          <p>Admin — admin@modelhub.test / admin1234</p>
+          <p className="mb-1 font-semibold text-foreground">Demo account</p>
           <p>User — user@modelhub.test / password123</p>
+          <p className="mt-2">
+            Agency staff?{" "}
+            <Link href="/admin/login" className="font-medium text-foreground link-underline">
+              Sign in to the console
+            </Link>
+          </p>
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
