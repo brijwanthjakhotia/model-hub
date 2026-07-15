@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { safeRedirect } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -15,8 +16,19 @@ export default async function LoginPage({
 }) {
   const sp = await searchParams;
   const next = safeRedirect(sp.next);
-  const user = await getCurrentUser();
-  if (user) redirect(next);
+  const justRegistered = sp.registered === "pending";
+  const blocked = sp.blocked === "1";
+  const session = await getCurrentUser();
+  if (session) {
+    // Only bounce genuinely-ACTIVE members away from the form. A member whose
+    // status changed mid-session still holds a valid cookie but must be able to
+    // reach the login form (and see why they were signed out).
+    const account = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: { status: true },
+    });
+    if (account?.status === "ACTIVE") redirect(next);
+  }
 
   return (
     <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
@@ -35,6 +47,26 @@ export default async function LoginPage({
             Sign in to submit talent and leave reviews.
           </p>
         </div>
+
+        {justRegistered && (
+          <div className="mb-4 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success">
+            <p className="font-medium">Account created — pending approval.</p>
+            <p className="mt-0.5 text-success/90">
+              An admin will review your account shortly. You&apos;ll be able to
+              sign in once it&apos;s activated.
+            </p>
+          </div>
+        )}
+
+        {blocked && (
+          <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
+            <p className="font-medium">You&apos;ve been signed out.</p>
+            <p className="mt-0.5">
+              Your account is no longer active. Sign in again or contact support
+              if you think this is a mistake.
+            </p>
+          </div>
+        )}
 
         <div className="card-surface p-6 sm:p-8">
           <LoginForm next={next} />

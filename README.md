@@ -28,6 +28,10 @@ Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**,
   dedicated `/admin/login` and their own session cookie, fully isolated from
   public member accounts. Admin roles (`SUPER_ADMIN`, `MODERATOR`) are enforced
   by middleware and server-side guards.
+- **Member lifecycle** — members carry a status (`PENDING`, `ACTIVE`,
+  `INACTIVE`, `SUSPENDED_FRAUD`, `SUSPENDED`); **only `ACTIVE` members can sign
+  in**. New sign-ups start `PENDING` and are approved from an admin Members
+  console.
 - **Light / dark theme** with no flash-of-wrong-theme, elegant fashion-agency
   typography (Playfair Display + Inter), and graceful image fallbacks.
 
@@ -67,15 +71,20 @@ Then open <http://localhost:3000>.
 
 Admins sign in at `/admin/login`; members sign in at `/login`.
 
-| Kind             | Email                   | Password       |
-| ---------------- | ----------------------- | -------------- |
-| Admin · super    | `super@modelhub.test`   | `superadmin1`  |
-| Admin · moderator| `mod@modelhub.test`     | `moderator1`   |
-| Member           | `user@modelhub.test`    | `password123`  |
+| Kind                     | Email                      | Password       |
+| ------------------------ | -------------------------- | -------------- |
+| Admin · super            | `super@modelhub.test`      | `superadmin1`  |
+| Admin · moderator        | `mod@modelhub.test`        | `moderator1`   |
+| Member · active          | `user@modelhub.test`       | `password123`  |
+| Member · pending (blocked)| `pending@modelhub.test`   | `password123`  |
+| Member · suspended (blocked)| `suspended@modelhub.test`| `password123` |
 
 Sign in as an admin to access the console at `/admin` and work the approval
-queue (3 profiles start pending). The **super admin** additionally sees an
-**Admins** tab to create and remove console accounts.
+queue (3 profiles start pending). The **Members** tab lists all members and lets
+any admin change status (e.g. approve a pending member so they can sign in); the
+**super admin** additionally sees an **Admins** tab to create and remove console
+accounts. Only the `ACTIVE` member above can sign in — the others are blocked by
+the login gate.
 
 ## Useful scripts
 
@@ -138,7 +147,8 @@ prisma/
 
 ## Data model
 
-- **User** — public member: `name`, `email`, `passwordHash`. No role.
+- **User** — public member: `name`, `email`, `passwordHash`, `status`
+  (`PENDING` | `ACTIVE` | `INACTIVE` | `SUSPENDED_FRAUD` | `SUSPENDED`). No role.
 - **Admin** — agency staff (separate table): `name`, `email`, `passwordHash`,
   `role` (`SUPER_ADMIN` | `MODERATOR`).
 - **Model** — profile fields, physical stats, portfolio gallery (JSON), a

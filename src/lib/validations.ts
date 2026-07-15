@@ -4,6 +4,7 @@ import {
   EXPERIENCE_LEVELS,
   EYE_COLORS,
   HAIR_COLORS,
+  USER_STATUSES,
 } from "@/lib/constants";
 
 export const registerSchema = z
@@ -21,6 +22,12 @@ export const registerSchema = z
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
+});
+
+/** Payload for an admin changing a member's account status. */
+export const userStatusSchema = z.object({
+  userId: z.string().min(1),
+  status: z.enum(USER_STATUSES),
 });
 
 /** Fields a SUPER_ADMIN provides when creating another admin. */

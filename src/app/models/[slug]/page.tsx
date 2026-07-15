@@ -20,6 +20,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getModelBySlug } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { parseGallery } from "@/lib/utils";
 
 export async function generateMetadata({
@@ -60,6 +61,19 @@ export default async function ModelProfilePage({
   const hasReviewed = user
     ? model.reviews.some((r) => r.author.id === user.id)
     : false;
+
+  // Only ACTIVE members can post reviews, so a suspended/pending member (who may
+  // still hold a valid session cookie) sees a notice instead of the form. The
+  // extra read only runs for signed-in visitors. Mirrors the requireUser gate
+  // that addReviewAction enforces on submit.
+  let isActiveMember = false;
+  if (user) {
+    const account = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { status: true },
+    });
+    isActiveMember = account?.status === "ACTIVE";
+  }
 
   const measurements = [
     { label: "Height", value: `${model.heightCm} cm` },
@@ -225,6 +239,11 @@ export default async function ModelProfilePage({
                 >
                   Sign in to review
                 </ButtonLink>
+              </div>
+            ) : !isActiveMember ? (
+              <div className="card-surface p-6 text-center text-sm text-muted-foreground">
+                Your account isn&apos;t active, so you can&apos;t post reviews
+                right now. Please contact support if you think this is a mistake.
               </div>
             ) : isOwner ? (
               <div className="card-surface p-6 text-center text-sm text-muted-foreground">

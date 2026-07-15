@@ -12,6 +12,14 @@ enum AdminRole {
   MODERATOR
 }
 
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED_FRAUD
+  SUSPENDED
+}
+
 enum ModelStatus {
   PENDING
   APPROVED
@@ -27,15 +35,18 @@ enum Gender {
 /// Public site accounts: browse, submit talent and leave reviews.
 /// Admin access lives in a separate `Admin` table (see below).
 model User {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   name         String
-  email        String   @unique
+  email        String     @unique
   passwordHash String
+  status       UserStatus @default(PENDING) // only ACTIVE members may sign in
   avatarUrl    String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime   @default(now())
 
-  models       Model[]  @relation("SubmittedModels")
+  models       Model[]    @relation("SubmittedModels")
   reviews      Review[]
+
+  @@index([status])
 }
 
 /// Agency staff who sign in to the admin console. Fully separate from `User`:

@@ -80,13 +80,21 @@ sequenceDiagram
   participant DB as Prisma
   B->>A: POST credentials
   A->>A: Zod validate
-  A->>DB: create user (register) / find user (login)
-  A->>A: bcrypt hash (register) / compare (login)
-  A->>A: signSession() -> Set-Cookie mh_session
-  A-->>B: 303 redirect to safeRedirect(next)
+  alt register
+    A->>DB: create user (status = PENDING)
+    A-->>B: 303 redirect /login?registered=pending
+  else login
+    A->>DB: find user
+    A->>A: bcrypt.compare
+    A->>A: reject unless status == ACTIVE
+    A->>A: signSession() -> Set-Cookie mh_session
+    A-->>B: 303 redirect to safeRedirect(next)
+  end
 ```
 
-On validation or credential failure the action returns an `AuthState`
+Registration **does not** sign the user in: new members are `PENDING` and can't
+log in until activated (see [Account status](#account-status)). On validation or
+credential failure the action returns an `AuthState`
 `{ error?, fieldErrors?, values? }` that the form renders inline (no redirect).
 
 ### Admin login
@@ -120,6 +128,55 @@ sequenceDiagram
 
 `logoutAction` clears `mh_session` and redirects to `/`; `adminLogoutAction`
 clears `mh_admin` and redirects to `/admin/login`.
+
+## Account status
+
+Members carry a `UserStatus` (see [data model](./data-model.md)). **Only
+`ACTIVE` members may sign in.** `loginAction` verifies the password *first*, then
+rejects any non-`ACTIVE` account — so the status is only revealed to whoever
+actually holds the password.
+
+| Status | Sign in? | Login message |
+| --- | --- | --- |
+| `ACTIVE` | ✅ | — |
+| `PENDING` | ❌ | "awaiting approval…" |
+| `INACTIVE` | ❌ | "inactive… contact support" |
+| `SUSPENDED` | ❌ | "suspended… contact support" |
+| `SUSPENDED_FRAUD` | ❌ | *same as `SUSPENDED`* — the fraud flag is never disclosed |
+
+Admins change a member's status from **`/admin/members`** via
+`updateMemberStatusAction` (any admin). New registrations default to `PENDING`,
+so activation there is the path from sign-up to first login.
+
+### Immediate cut-off (mid-session)
+
+The gate is enforced at **login** *and* on every protected request. `requireUser`
+does a fresh DB read of the member's status and redirects to `/login?blocked=1`
+if the account is no longer `ACTIVE` — so an admin suspending a member takes
+effect on that member's **next** protected request, not only at next login. It
+covers:
+
+- **Pages:** `/dashboard`, `/submit` (call `requireUser`).
+- **Mutations:** `createModelAction` and `addReviewAction` route through
+  `requireUser`, so a suspended member can't submit talent or post reviews even
+  by calling the action directly.
+
+A Server Component can't clear cookies, so a cut-off member is redirected to the
+**`/session/blocked`** route handler, which clears the (inert) session cookie
+and then shows `/login?blocked=1`. `getCurrentUser` stays a cheap JWT-only read
+for display (header, public pages), so the extra DB lookup only happens where
+access is actually granted.
+
+Two spots that read the JWT for display also confirm status so the UI matches
+reality:
+
+- The **profile page** looks up the signed-in member's status and shows a "your
+  account isn't active" notice instead of the review form for non-`ACTIVE`
+  members (submitting was already blocked by `addReviewAction`'s `requireUser`).
+- Because `/session/blocked` clears the cookie, the header stops showing a
+  just-cut-off member as signed in after their first protected request. A member
+  who never touches a protected route keeps a cosmetic "signed in" header until
+  the token expires — harmless, since no protected action succeeds.
 
 ## Routing note: the `(console)` group
 

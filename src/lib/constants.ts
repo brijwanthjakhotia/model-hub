@@ -60,3 +60,25 @@ export const STATUS_META: Record<
   APPROVED: { label: "Approved", tone: "success" },
   REJECTED: { label: "Rejected", tone: "danger" },
 };
+
+/** Member account statuses. Only ACTIVE members can sign in. */
+export const USER_STATUSES = [
+  "PENDING",
+  "ACTIVE",
+  "INACTIVE",
+  "SUSPENDED_FRAUD",
+  "SUSPENDED",
+] as const;
+
+export type UserStatusValue = (typeof USER_STATUSES)[number];
+
+export const USER_STATUS_META: Record<
+  UserStatusValue,
+  { label: string; tone: "warning" | "success" | "muted" | "danger" }
+> = {
+  PENDING: { label: "Pending", tone: "warning" },
+  ACTIVE: { label: "Active", tone: "success" },
+  INACTIVE: { label: "Inactive", tone: "muted" },
+  SUSPENDED_FRAUD: { label: "Suspended · fraud", tone: "danger" },
+  SUSPENDED: { label: "Suspended", tone: "danger" },
+};

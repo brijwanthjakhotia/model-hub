@@ -52,6 +52,7 @@ export default async function AdminLayout({
 
       <AdminNav
         pendingCount={stats.pending}
+        pendingMembers={stats.pendingMembers}
         canManageAdmins={admin.role === "SUPER_ADMIN"}
       />
 

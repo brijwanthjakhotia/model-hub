@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, requireAdmin } from "@/lib/auth";
+import { requireUser, requireAdmin } from "@/lib/auth";
 import { modelSchema, reviewDecisionSchema } from "@/lib/validations";
 import { parseGalleryUrls, slugify } from "@/lib/utils";
 
@@ -28,8 +28,7 @@ export async function createModelAction(
   _prev: ModelFormState,
   formData: FormData,
 ): Promise<ModelFormState> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login?next=/submit");
+  const user = await requireUser("/login?next=/submit");
 
   const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
   const parsed = modelSchema.safeParse(raw);

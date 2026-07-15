@@ -90,7 +90,7 @@ the sort option.
 
 The headline feature. The admin console — a separate identity from public
 members (see [authentication](./authentication.md)), guarded by `requireAdmin`
-in the `(console)` layout — has three tabs for every admin, plus an **Admins**
+in the `(console)` layout — has four tabs for every admin, plus an **Admins**
 tab for super admins:
 
 - **Overview** — stat cards (pending / approved / rejected / reviews) and a
@@ -102,6 +102,10 @@ tab for super admins:
 - **All talent** — a roster table of every profile with status, rating, a
   **feature toggle** (approved profiles only) and **delete** (with inline
   confirm).
+- **Members** — every public account with its status, submission/review counts,
+  and a control to change status (`updateMemberStatusAction`). New sign-ups start
+  `PENDING` and can't log in until an admin sets them `ACTIVE`; the tab shows a
+  badge with the pending count. See [authentication](./authentication.md#account-status).
 
 ```mermaid
 stateDiagram-v2

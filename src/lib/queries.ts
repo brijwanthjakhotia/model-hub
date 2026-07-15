@@ -103,16 +103,33 @@ export async function getUserSubmissions(userId: string) {
   });
 }
 
+export async function getMembers() {
+  return prisma.user.findMany({
+    orderBy: [{ createdAt: "desc" }],
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      status: true,
+      avatarUrl: true,
+      createdAt: true,
+      _count: { select: { models: true, reviews: true } },
+    },
+  });
+}
+
 export async function getAdminStats() {
-  const [total, pending, approved, rejected, reviews, users] = await Promise.all([
-    prisma.model.count(),
-    prisma.model.count({ where: { status: "PENDING" } }),
-    prisma.model.count({ where: { status: "APPROVED" } }),
-    prisma.model.count({ where: { status: "REJECTED" } }),
-    prisma.review.count(),
-    prisma.user.count(),
-  ]);
-  return { total, pending, approved, rejected, reviews, users };
+  const [total, pending, approved, rejected, reviews, users, pendingMembers] =
+    await Promise.all([
+      prisma.model.count(),
+      prisma.model.count({ where: { status: "PENDING" } }),
+      prisma.model.count({ where: { status: "APPROVED" } }),
+      prisma.model.count({ where: { status: "REJECTED" } }),
+      prisma.review.count(),
+      prisma.user.count(),
+      prisma.user.count({ where: { status: "PENDING" } }),
+    ]);
+  return { total, pending, approved, rejected, reviews, users, pendingMembers };
 }
 
 export async function getSiteStats() {

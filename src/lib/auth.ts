@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import {
   SESSION_COOKIE,
   ADMIN_SESSION_COOKIE,
@@ -44,11 +45,29 @@ export async function destroySession() {
   store.delete(SESSION_COOKIE);
 }
 
-/** Require an authenticated user, redirecting to login otherwise. */
+/**
+ * Require an **ACTIVE** member.
+ *
+ * Redirects to `redirectTo` if not signed in, and — via a fresh DB read —
+ * redirects to `/login?blocked=1` if the account has since been suspended,
+ * deactivated or reset to pending. This re-check is what makes an admin status
+ * change take effect immediately (on the member's next protected request),
+ * rather than only at their next login. A Server Component can't clear cookies,
+ * so a cut-off member is sent to the `/session/blocked` route handler, which
+ * clears the (now-inert) session cookie before showing the login page.
+ */
 export async function requireUser(redirectTo = "/login"): Promise<SessionUser> {
-  const user = await getCurrentUser();
-  if (!user) redirect(redirectTo);
-  return user;
+  const session = await getCurrentUser();
+  if (!session) redirect(redirectTo);
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { id: true, name: true, email: true, status: true },
+  });
+  if (!user || user.status !== "ACTIVE") {
+    redirect("/session/blocked");
+  }
+  return { id: user.id, name: user.name, email: user.email };
 }
 
 /* -------------------------------------------------------------------------- */
