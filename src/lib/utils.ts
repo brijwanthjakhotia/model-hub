@@ -60,7 +60,7 @@ export function initials(name: string) {
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase() ?? "")
+    .map((n) => n.charAt(0).toUpperCase())
     .join("");
 }
 
@@ -98,6 +98,10 @@ export function pluralize(count: number, singular: string, plural?: string) {
 export function safeRedirect(value: unknown, fallback = "/"): string {
   const v = Array.isArray(value) ? value[0] : value;
   if (typeof v !== "string" || !v.startsWith("/")) return fallback;
+  // Control chars (tab/CR/LF/etc.) are stripped by the URL parser, so a value
+  // like "/\t/evil.com" would resolve to "//evil.com" → off-site. Reject them
+  // before the "//" / "/\" checks, which operate on the raw string.
+  if (/[\u0000-\u001f\u007f]/.test(v)) return fallback;
   if (v.startsWith("//") || v.startsWith("/\\")) return fallback;
   return v;
 }

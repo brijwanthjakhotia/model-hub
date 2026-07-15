@@ -6,14 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { CreateAdminForm } from "@/components/admin/create-admin-form";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ADMIN_ROLE_META } from "@/lib/constants";
 import { timeAgo } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Admins" };
-
-const ROLE_LABEL: Record<string, string> = {
-  SUPER_ADMIN: "Super admin",
-  MODERATOR: "Moderator",
-};
 
 export default async function AdminsPage() {
   const current = await requireSuperAdmin();
@@ -48,7 +44,7 @@ export default async function AdminsPage() {
                 </p>
               </div>
               <Badge tone={admin.role === "SUPER_ADMIN" ? "accent" : "muted"}>
-                {ROLE_LABEL[admin.role] ?? admin.role}
+                {ADMIN_ROLE_META[admin.role]?.label ?? admin.role}
               </Badge>
               {admin.id !== current.id && (
                 <form action={deleteAdminAction}>

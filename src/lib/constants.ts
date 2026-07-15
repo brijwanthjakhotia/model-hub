@@ -9,8 +9,6 @@ export const CATEGORIES = [
   "Petite",
 ] as const;
 
-export type Category = (typeof CATEGORIES)[number];
-
 export const GENDERS = [
   { value: "FEMALE", label: "Female" },
   { value: "MALE", label: "Male" },
@@ -52,13 +50,25 @@ export const SORT_OPTIONS = [
 
 export type SortOption = (typeof SORT_OPTIONS)[number]["value"];
 
+export const MODEL_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
+export type ModelStatusValue = (typeof MODEL_STATUSES)[number];
+
 export const STATUS_META: Record<
-  "PENDING" | "APPROVED" | "REJECTED",
+  ModelStatusValue,
   { label: string; tone: "warning" | "success" | "danger" }
 > = {
   PENDING: { label: "Pending review", tone: "warning" },
   APPROVED: { label: "Approved", tone: "success" },
   REJECTED: { label: "Rejected", tone: "danger" },
+};
+
+/** Admin roles — single source for the enum, Zod schema and display labels. */
+export const ADMIN_ROLES = ["SUPER_ADMIN", "MODERATOR"] as const;
+export type AdminRoleValue = (typeof ADMIN_ROLES)[number];
+
+export const ADMIN_ROLE_META: Record<AdminRoleValue, { label: string }> = {
+  SUPER_ADMIN: { label: "Super admin" },
+  MODERATOR: { label: "Moderator" },
 };
 
 /** Member account statuses. Only ACTIVE members can sign in. */

@@ -4,11 +4,7 @@ import { adminLogoutAction } from "@/actions/auth";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Avatar } from "@/components/ui/avatar";
 import { getAdminStats } from "@/lib/queries";
-
-const ROLE_LABEL: Record<string, string> = {
-  SUPER_ADMIN: "Super admin",
-  MODERATOR: "Moderator",
-};
+import { ADMIN_ROLE_META } from "@/lib/constants";
 
 export default async function AdminLayout({
   children,
@@ -34,7 +30,7 @@ export default async function AdminLayout({
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-medium">{admin.name}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {ROLE_LABEL[admin.role] ?? admin.role}
+              {ADMIN_ROLE_META[admin.role]?.label ?? admin.role}
             </p>
           </div>
           <form action={adminLogoutAction}>

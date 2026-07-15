@@ -113,6 +113,8 @@ model Model {
 
   @@index([status])
   @@index([category])
+  @@index([submittedById]) // dashboard "my submissions" + per-member counts
+  @@index([reviewedById])  // approval audit lookups + SET NULL on admin delete
 }
 
 model Review {
@@ -128,6 +130,6 @@ model Review {
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  @@unique([modelId, authorId]) // one review per user per model
-  @@index([modelId])
+  @@unique([modelId, authorId]) // one review per user per model; also indexes modelId (leftmost)
+  @@index([authorId])           // per-author counts + cascade on user delete
 }

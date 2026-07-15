@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Star, Trash2 } from "lucide-react";
 import { deleteModelAction, toggleFeaturedAction } from "@/actions/models";
 import { cn } from "@/lib/utils";
+import type { ModelStatusValue } from "@/lib/constants";
 
 export function ModelRowActions({
   modelId,
@@ -13,7 +14,7 @@ export function ModelRowActions({
 }: {
   modelId: string;
   featured: boolean;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: ModelStatusValue;
   name: string;
 }) {
   const [confirming, setConfirming] = useState(false);

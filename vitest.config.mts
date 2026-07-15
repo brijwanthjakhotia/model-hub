@@ -17,7 +17,14 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: ["src/lib/**/*.ts"],
-      exclude: ["src/lib/prisma.ts", "src/lib/auth.ts", "src/lib/queries.ts"],
+      // Excluded: DB/runtime-bound modules that need next/headers or Prisma and
+      // are covered by integration/runtime checks rather than unit tests.
+      exclude: [
+        "src/lib/prisma.ts",
+        "src/lib/auth.ts",
+        "src/lib/queries.ts",
+        "src/lib/rate-limit.ts",
+      ],
     },
   },
   esbuild: {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { userStatusSchema } from "@/lib/validations";
@@ -17,10 +18,17 @@ export async function updateMemberStatusAction(formData: FormData) {
     throw new Error("Invalid status payload");
   }
 
-  await prisma.user.update({
-    where: { id: parsed.data.userId },
-    data: { status: parsed.data.status },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: parsed.data.userId },
+      data: { status: parsed.data.status },
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      throw new Error("That member no longer exists.");
+    }
+    throw e;
+  }
 
   revalidatePath("/admin/members");
 }

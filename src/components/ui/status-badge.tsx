@@ -1,18 +1,14 @@
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { STATUS_META } from "@/lib/constants";
+import { STATUS_META, type ModelStatusValue } from "@/lib/constants";
 
-const icons = {
+const icons: Record<ModelStatusValue, typeof Clock> = {
   PENDING: Clock,
   APPROVED: CheckCircle2,
   REJECTED: XCircle,
 };
 
-export function StatusBadge({
-  status,
-}: {
-  status: "PENDING" | "APPROVED" | "REJECTED";
-}) {
+export function StatusBadge({ status }: { status: ModelStatusValue }) {
   const meta = STATUS_META[status];
   const Icon = icons[status];
   return (

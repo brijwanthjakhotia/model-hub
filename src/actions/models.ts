@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser, requireAdmin } from "@/lib/auth";
 import { modelSchema, reviewDecisionSchema } from "@/lib/validations";
@@ -13,16 +14,10 @@ export type ModelFormState = {
   values?: Record<string, string>;
 };
 
-async function uniqueSlug(name: string) {
-  const base = slugify(name) || "model";
-  let slug = base;
-  let n = 1;
-  while (await prisma.model.findUnique({ where: { slug } })) {
-    n += 1;
-    slug = `${base}-${n}`;
-  }
-  return slug;
-}
+const isUniqueViolation = (e: unknown) =>
+  e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+const isNotFound = (e: unknown) =>
+  e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025";
 
 export async function createModelAction(
   _prev: ModelFormState,
@@ -40,32 +35,41 @@ export async function createModelAction(
   }
 
   const d = parsed.data;
-  const slug = await uniqueSlug(d.name);
+  const base = slugify(d.name) || "model";
+  const data = {
+    name: d.name,
+    category: d.category,
+    gender: d.gender,
+    location: d.location,
+    experience: d.experience,
+    bio: d.bio,
+    heightCm: d.heightCm,
+    bust: d.bust,
+    waist: d.waist,
+    hips: d.hips,
+    shoeEu: d.shoeEu,
+    hairColor: d.hairColor || null,
+    eyeColor: d.eyeColor || null,
+    instagram: d.instagram || null,
+    agencyEmail: d.agencyEmail || null,
+    headshotUrl: d.headshotUrl || null,
+    gallery: JSON.stringify(parseGalleryUrls(d.gallery)),
+    status: "PENDING" as const,
+    submittedById: user.id,
+  };
 
-  await prisma.model.create({
-    data: {
-      slug,
-      name: d.name,
-      category: d.category,
-      gender: d.gender,
-      location: d.location,
-      experience: d.experience,
-      bio: d.bio,
-      heightCm: d.heightCm,
-      bust: d.bust,
-      waist: d.waist,
-      hips: d.hips,
-      shoeEu: d.shoeEu,
-      hairColor: d.hairColor || null,
-      eyeColor: d.eyeColor || null,
-      instagram: d.instagram || null,
-      agencyEmail: d.agencyEmail || null,
-      headshotUrl: d.headshotUrl || null,
-      gallery: JSON.stringify(parseGalleryUrls(d.gallery)),
-      status: "PENDING",
-      submittedById: user.id,
-    },
-  });
+  // Create with a unique slug, retrying on the rare collision (P2002) rather
+  // than a check-then-create that races two concurrent same-named submissions.
+  for (let attempt = 0; ; attempt++) {
+    const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    try {
+      await prisma.model.create({ data: { ...data, slug } });
+      break;
+    } catch (e) {
+      if (isUniqueViolation(e) && attempt < 25) continue;
+      throw e;
+    }
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/admin/approvals");
@@ -86,15 +90,20 @@ export async function decideModelAction(formData: FormData) {
 
   const { modelId, decision, note } = parsed.data;
 
-  await prisma.model.update({
-    where: { id: modelId },
-    data: {
-      status: decision,
-      reviewNote: note || null,
-      reviewedById: admin.id,
-      reviewedAt: new Date(),
-    },
-  });
+  try {
+    await prisma.model.update({
+      where: { id: modelId },
+      data: {
+        status: decision,
+        reviewNote: note || null,
+        reviewedById: admin.id,
+        reviewedAt: new Date(),
+      },
+    });
+  } catch (e) {
+    if (isNotFound(e)) throw new Error("That profile no longer exists.");
+    throw e;
+  }
 
   revalidatePath("/admin/approvals");
   revalidatePath("/admin");
@@ -120,7 +129,15 @@ export async function toggleFeaturedAction(formData: FormData) {
 export async function deleteModelAction(formData: FormData) {
   await requireAdmin();
   const modelId = String(formData.get("modelId") ?? "");
-  await prisma.model.delete({ where: { id: modelId } });
+  if (!modelId) throw new Error("Missing model id");
+
+  try {
+    await prisma.model.delete({ where: { id: modelId } });
+  } catch (e) {
+    if (isNotFound(e)) throw new Error("That profile no longer exists.");
+    throw e;
+  }
+
   revalidatePath("/admin/models");
   revalidatePath("/models");
 }

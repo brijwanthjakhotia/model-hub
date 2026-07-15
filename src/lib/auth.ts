@@ -93,11 +93,23 @@ export async function destroyAdminSession() {
   store.delete(ADMIN_SESSION_COOKIE);
 }
 
-/** Require a signed-in admin, redirecting to the admin login otherwise. */
+/**
+ * Require a signed-in admin. Redirects to the admin login if there's no session
+ * and — via a fresh DB read — to `/session/admin-blocked` if the admin has since
+ * been deleted. The role is re-read from the DB too, so a demotion (e.g.
+ * SUPER_ADMIN → MODERATOR) takes effect immediately rather than lasting until
+ * the 7-day token expires. Mirrors `requireUser`.
+ */
 export async function requireAdmin(): Promise<SessionAdmin> {
-  const admin = await getCurrentAdmin();
-  if (!admin) redirect("/admin/login?next=/admin");
-  return admin;
+  const session = await getCurrentAdmin();
+  if (!session) redirect("/admin/login?next=/admin");
+
+  const admin = await prisma.admin.findUnique({
+    where: { id: session.id },
+    select: { id: true, name: true, email: true, role: true },
+  });
+  if (!admin) redirect("/session/admin-blocked");
+  return { id: admin.id, name: admin.name, email: admin.email, role: admin.role };
 }
 
 /** Require a SUPER_ADMIN; other admins are sent back to the console. */

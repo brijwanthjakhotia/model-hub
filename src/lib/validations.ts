@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  ADMIN_ROLES,
   CATEGORIES,
   EXPERIENCE_LEVELS,
   EYE_COLORS,
@@ -35,7 +36,7 @@ export const createAdminSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(60),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters").max(100),
-  role: z.enum(["SUPER_ADMIN", "MODERATOR"]),
+  role: z.enum(ADMIN_ROLES),
 });
 
 /** Treat empty form values ("", null, undefined) as "not provided". */
@@ -52,12 +53,12 @@ const optionalFloat = (min: number, max: number) =>
 
 export const modelSchema = z.object({
   name: z.string().trim().min(2, "Name is required").max(80),
-  category: z.enum(CATEGORIES as unknown as [string, ...string[]], {
+  category: z.enum(CATEGORIES, {
     errorMap: () => ({ message: "Choose a category" }),
   }),
   gender: z.enum(["FEMALE", "MALE", "NONBINARY"]),
   location: z.string().trim().min(2, "Location is required").max(80),
-  experience: z.enum(EXPERIENCE_LEVELS as unknown as [string, ...string[]]),
+  experience: z.enum(EXPERIENCE_LEVELS),
   bio: z
     .string()
     .trim()
@@ -75,8 +76,8 @@ export const modelSchema = z.object({
   waist: optionalInt(40, 200),
   hips: optionalInt(50, 200),
   shoeEu: optionalFloat(30, 52),
-  hairColor: z.enum(HAIR_COLORS as unknown as [string, ...string[]]).optional().or(z.literal("")),
-  eyeColor: z.enum(EYE_COLORS as unknown as [string, ...string[]]).optional().or(z.literal("")),
+  hairColor: z.enum(HAIR_COLORS).optional().or(z.literal("")),
+  eyeColor: z.enum(EYE_COLORS).optional().or(z.literal("")),
   instagram: z.string().trim().max(60).optional().or(z.literal("")),
   agencyEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
   headshotUrl: z.string().trim().url("Must be a valid URL").optional().or(z.literal("")),

@@ -161,9 +161,17 @@ covers:
   `requireUser`, so a suspended member can't submit talent or post reviews even
   by calling the action directly.
 
-A Server Component can't clear cookies, so a cut-off member is redirected to the
-**`/session/blocked`** route handler, which clears the (inert) session cookie
-and then shows `/login?blocked=1`. `getCurrentUser` stays a cheap JWT-only read
+**Admins get the same treatment:** `requireAdmin` re-reads the `Admin` row on
+every request and re-derives the role from the DB, so deleting or demoting an
+admin takes effect immediately (a deleted admin is sent to
+`/session/admin-blocked`, a demoted super admin loses `/admin/admins` at once)
+rather than lasting until the token expires.
+
+A Server Component can't clear cookies, so a cut-off member/admin is redirected
+to the **`/session/blocked`** (or **`/session/admin-blocked`**) route handler,
+which clears the (inert) session cookie and then shows the login page with a
+`blocked=1` banner. Those handlers only clear on a same-origin navigation
+(`Sec-Fetch-Site`), so a cross-site request can't force a logout. `getCurrentUser` stays a cheap JWT-only read
 for display (header, public pages), so the extra DB lookup only happens where
 access is actually granted.
 
@@ -213,14 +221,31 @@ the acting admin or the last remaining super admin.
 The `next` query param (where to send the user after auth) is always passed
 through `safeRedirect()` ([`lib/utils.ts`](../src/lib/utils.ts)) before use. It
 accepts only same-origin absolute paths and rejects `//host`, `/\host`, absolute
-URLs, and non-string values — falling back to `/`. This is covered by unit tests
-in `test/utils.test.ts`.
+URLs, non-string values, **and any control characters** — the last matter
+because the URL parser strips tab/CR/LF, so `"/\t/evil.com"` would otherwise
+resolve to `//evil.com` (off-site). Covered by unit tests in `test/utils.test.ts`.
+
+## Abuse protection
+
+- **Rate limiting** — `loginAction`, `adminLoginAction` and `registerAction` are
+  throttled per IP (and per email for member login) via
+  [`lib/rate-limit.ts`](../src/lib/rate-limit.ts). It's an in-process limiter — a
+  real speed bump for single-instance deploys; a multi-instance/serverless setup
+  needs a shared store (Redis).
+- **Constant-time credential check** — on an unknown email the login actions
+  still run a bcrypt hash, so response latency doesn't reveal whether an account
+  exists.
+- **No registration enumeration** — a duplicate email produces the *same*
+  "pending approval" response as a fresh signup (no "already exists" tell).
 
 ## Production checklist
 
 - [ ] Set a strong `AUTH_SECRET` (`openssl rand -base64 32`). The committed value
       in `.env` is for local development only.
 - [ ] Serve over HTTPS so the `secure` cookie flag takes effect.
-- [ ] Consider shortening the token lifetime and/or adding refresh if you need
-      server-side revocation (JWTs are stateless and valid until they expire).
+- [ ] Back the rate limiter with a shared store (Redis) if running more than one
+      instance.
+- [ ] Consider shortening the token lifetime and/or adding refresh; note that
+      member/admin status is already re-checked from the DB on every protected
+      request, so suspensions/deletions take effect immediately.
 - [ ] Switch to Postgres + Prisma migrations (see [data model](./data-model.md)).

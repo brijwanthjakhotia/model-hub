@@ -152,8 +152,10 @@ The central entity. Fields fall into five groups:
 - **Workflow metadata:** `status`, `featured`, `reviewNote`, `reviewedAt`,
   `reviewedById` (→ `Admin`), `submittedById` (→ `User`).
 
-**Indexes:** `@@index([status])` and `@@index([category])` — the two columns the
-gallery and admin queries filter on most.
+**Indexes:** `@@index([status])` and `@@index([category])` (gallery/admin
+filters), plus `@@index([submittedById])` and `@@index([reviewedById])` — FK
+columns Prisma doesn't auto-index, used by the dashboard, per-member counts and
+the `onDelete` actions.
 
 ## Review
 
@@ -164,8 +166,10 @@ gallery and admin queries filter on most.
 | `body` | `String` | the review text |
 | `modelId` + `authorId` | FKs | `onDelete: Cascade` from both sides |
 
-**`@@unique([modelId, authorId])`** enforces **one review per user per model**.
-Re-submitting updates the existing review (the action uses `upsert`).
+**`@@unique([modelId, authorId])`** enforces **one review per user per model**
+(and, being the leftmost prefix, indexes `modelId`). Re-submitting updates the
+existing review (the action uses `upsert`). A separate `@@index([authorId])`
+backs per-author counts and the cascade on user delete.
 
 ## The rating cache
 
@@ -198,9 +202,11 @@ first) and creates:
 
 - 2 admins — 1 `SUPER_ADMIN` and 1 `MODERATOR` (the moderator is recorded as the
   reviewer on approved/rejected profiles).
-- 5 users — a casting director, a photographer and a general member (all
-  `ACTIVE`, used as review authors), plus one `PENDING` and one `SUSPENDED`
-  member to exercise the members console and the login gate.
+- 6 users — a casting director, a photographer and a general member (all
+  `ACTIVE`, used as review authors), an `ACTIVE` "Agency Scout" who submits the
+  approved roster (so no profile lists its own submitter as a reviewer), plus one
+  `PENDING` and one `SUSPENDED` member to exercise the members console and login
+  gate.
 - 13 talent profiles — 9 approved (several featured), 3 pending, 1 rejected
   (with an admin note), across all categories/genders.
 - 16 reviews, with the rating cache filled in.
