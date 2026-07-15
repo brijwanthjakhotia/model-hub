@@ -62,6 +62,7 @@ export async function verifySession(
   const payload = await verify(token);
   if (
     payload &&
+    payload.kind !== "admin" && // an admin token must never pass as a member
     typeof payload.id === "string" &&
     typeof payload.name === "string" &&
     typeof payload.email === "string"

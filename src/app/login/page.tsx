@@ -73,9 +73,13 @@ export default async function LoginPage({
         </div>
 
         <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/30 p-4 text-xs text-muted-foreground">
-          <p className="mb-1 font-semibold text-foreground">Demo account</p>
-          <p>User — user@modelhub.test / password123</p>
-          <p className="mt-2">
+          {process.env.NODE_ENV !== "production" && (
+            <>
+              <p className="mb-1 font-semibold text-foreground">Demo account (dev only)</p>
+              <p>User — user@modelhub.test / password123</p>
+            </>
+          )}
+          <p className={process.env.NODE_ENV !== "production" ? "mt-2" : ""}>
             Agency staff?{" "}
             <Link href="/admin/login" className="font-medium text-foreground link-underline">
               Sign in to the console

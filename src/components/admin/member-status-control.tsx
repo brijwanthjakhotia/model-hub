@@ -2,18 +2,23 @@
 
 import { updateMemberStatusAction } from "@/actions/members";
 import { Select } from "@/components/ui/field";
-import { USER_STATUSES, USER_STATUS_META } from "@/lib/constants";
+import {
+  USER_STATUSES,
+  USER_STATUS_META,
+  type UserStatusValue,
+} from "@/lib/constants";
 
 /**
- * Compact status picker for a member row. Submits the server action as soon as
- * a new status is chosen; a visible button is kept for the no-JS case.
+ * Status picker for a member row. Applying is an explicit button press — we do
+ * NOT auto-submit on change, since a keyboard user arrowing through a focused
+ * select would otherwise commit each status they pass over.
  */
 export function MemberStatusControl({
   userId,
   status,
 }: {
   userId: string;
-  status: string;
+  status: UserStatusValue;
 }) {
   return (
     <form action={updateMemberStatusAction} className="flex items-center gap-2">
@@ -23,7 +28,6 @@ export function MemberStatusControl({
         defaultValue={status}
         aria-label="Member status"
         className="h-9 py-0 text-xs"
-        onChange={(e) => e.currentTarget.form?.requestSubmit()}
       >
         {USER_STATUSES.map((s) => (
           <option key={s} value={s}>

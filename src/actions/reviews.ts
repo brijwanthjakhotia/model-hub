@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { reviewSchema } from "@/lib/validations";
@@ -11,14 +12,14 @@ export type ReviewState = {
   success?: boolean;
 };
 
-/** Recompute the denormalised rating cache for a model. */
-async function recomputeRating(modelId: string) {
-  const agg = await prisma.review.aggregate({
+/** Recompute the denormalised rating cache for a model, inside a transaction. */
+async function recomputeRating(tx: Prisma.TransactionClient, modelId: string) {
+  const agg = await tx.review.aggregate({
     where: { modelId },
     _avg: { rating: true },
     _count: { _all: true },
   });
-  await prisma.model.update({
+  await tx.model.update({
     where: { id: modelId },
     data: {
       ratingAvg: Math.round((agg._avg.rating ?? 0) * 10) / 10,
@@ -46,34 +47,41 @@ export async function addReviewAction(
     where: { id: parsed.data.modelId },
     select: { id: true, slug: true, status: true, submittedById: true },
   });
+
+  // Authenticate (and enforce ACTIVE status) BEFORE revealing whether the
+  // target exists or is reviewable.
+  const user = await requireUser(
+    model ? `/login?next=/models/${model.slug}` : "/login",
+  );
+
   if (!model || model.status !== "APPROVED") {
     return { error: "This profile is not available for reviews." };
   }
-
-  // Redirects unauthenticated users to login, and blocks non-ACTIVE members.
-  const user = await requireUser(`/login?next=/models/${model.slug}`);
-
   if (model.submittedById === user.id) {
     return { error: "You cannot review a profile you submitted." };
   }
 
-  await prisma.review.upsert({
-    where: { modelId_authorId: { modelId: model.id, authorId: user.id } },
-    create: {
-      modelId: model.id,
-      authorId: user.id,
-      rating: parsed.data.rating,
-      title: parsed.data.title || null,
-      body: parsed.data.body,
-    },
-    update: {
-      rating: parsed.data.rating,
-      title: parsed.data.title || null,
-      body: parsed.data.body,
-    },
+  // Write the review and recompute the cached rating atomically, so the two can
+  // never diverge (crash between them, or interleaved concurrent reviews).
+  await prisma.$transaction(async (tx) => {
+    await tx.review.upsert({
+      where: { modelId_authorId: { modelId: model.id, authorId: user.id } },
+      create: {
+        modelId: model.id,
+        authorId: user.id,
+        rating: parsed.data.rating,
+        title: parsed.data.title || null,
+        body: parsed.data.body,
+      },
+      update: {
+        rating: parsed.data.rating,
+        title: parsed.data.title || null,
+        body: parsed.data.body,
+      },
+    });
+    await recomputeRating(tx, model.id);
   });
 
-  await recomputeRating(model.id);
   revalidatePath(`/models/${model.slug}`);
   return { success: true };
 }

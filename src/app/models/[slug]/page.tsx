@@ -45,7 +45,7 @@ export default async function ModelProfilePage({
   const { slug } = await params;
   const [model, user] = await Promise.all([getModelBySlug(slug), getCurrentUser()]);
 
-  if (!model || model.status !== "APPROVED") notFound();
+  if (!model) notFound(); // getModelBySlug returns only APPROVED profiles
 
   const galleryImages = [
     ...(model.headshotUrl ? [model.headshotUrl] : []),

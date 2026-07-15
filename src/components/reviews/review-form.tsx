@@ -6,6 +6,7 @@ import { Star } from "lucide-react";
 import { addReviewAction, type ReviewState } from "@/actions/reviews";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
+import { FormMessage } from "@/components/ui/form-message";
 import { cn } from "@/lib/utils";
 
 const initial: ReviewState = {};
@@ -97,11 +98,7 @@ export function ReviewForm({ modelId }: { modelId: string }) {
         />
       </Field>
 
-      {state.error && (
-        <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
-          {state.error}
-        </p>
-      )}
+      <FormMessage>{state.error}</FormMessage>
 
       <SubmitButton />
     </form>

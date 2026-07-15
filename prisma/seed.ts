@@ -6,17 +6,9 @@ import {
   UserStatus,
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { slugify } from "../src/lib/utils";
 
 const prisma = new PrismaClient();
-
-function slugify(input: string) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
 
 function img(seed: string, w = 640, h = 800) {
   return `https://picsum.photos/seed/${seed}/${w}/${h}`;
@@ -390,6 +382,18 @@ async function main() {
     },
   });
 
+  // Submits the approved roster but writes no reviews, so no profile ends up
+  // with its own submitter listed among its reviewers (which the app forbids).
+  const scout = await prisma.user.create({
+    data: {
+      name: "Agency Scout",
+      email: "scout@modelhub.test",
+      passwordHash,
+      status: UserStatus.ACTIVE,
+      avatarUrl: img("scoutavatar", 200, 200),
+    },
+  });
+
   // A couple of non-ACTIVE members so the members console and the login gate are
   // demonstrable out of the box.
   await prisma.user.create({
@@ -420,7 +424,7 @@ async function main() {
 
   for (const m of MODELS) {
     const slug = slugify(m.name);
-    const submitter = m.status === ModelStatus.PENDING ? user1.id : casting.id;
+    const submitter = m.status === ModelStatus.PENDING ? user1.id : scout.id;
 
     const created = await prisma.model.create({
       data: {

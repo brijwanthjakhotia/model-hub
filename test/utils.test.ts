@@ -130,6 +130,19 @@ describe("safeRedirect (open-redirect guard)", () => {
     expect(safeRedirect("/\\evil.com")).toBe("/");
   });
 
+  it("rejects control chars that the URL parser strips into an off-site target", () => {
+    const tab = String.fromCharCode(9);
+    const lf = String.fromCharCode(10);
+    const cr = String.fromCharCode(13);
+    expect(safeRedirect("/" + tab + "/evil.com")).toBe("/");
+    expect(safeRedirect("/" + lf + "/evil.com")).toBe("/");
+    expect(safeRedirect("/" + cr + "/evil.com")).toBe("/");
+    // Documents the threat: the raw form really does resolve cross-origin.
+    expect(new URL("/" + tab + "/evil.com", "https://site.test").origin).toBe(
+      "https://evil.com",
+    );
+  });
+
   it("rejects absolute external urls", () => {
     expect(safeRedirect("https://evil.com")).toBe("/");
     expect(safeRedirect("http://evil.com")).toBe("/");
@@ -189,5 +202,13 @@ describe("timeAgo", () => {
     expect(timeAgo(new Date(now - 5 * 60 * 1000))).toContain("minute");
     expect(timeAgo(new Date(now - 2 * 60 * 60 * 1000))).toContain("hour");
     expect(timeAgo(new Date(now - 3 * 24 * 60 * 60 * 1000))).toContain("day");
+  });
+
+  it("accepts an ISO string, matching the Date form", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-14T12:00:00Z"));
+    const d = new Date("2026-07-14T09:00:00Z");
+    expect(timeAgo(d.toISOString())).toBe(timeAgo(d));
+    expect(timeAgo(d.toISOString())).toContain("hour");
   });
 });

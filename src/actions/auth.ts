@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import {
@@ -11,12 +12,16 @@ import {
 } from "@/lib/auth";
 import { loginSchema, registerSchema } from "@/lib/validations";
 import { safeRedirect } from "@/lib/utils";
+import { statusLoginMessage } from "@/lib/auth-messages";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export type AuthState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
   values?: Record<string, string>;
 };
+
+const TOO_MANY = "Too many attempts. Please wait a minute and try again.";
 
 export async function registerAction(
   _prev: AuthState,
@@ -36,26 +41,27 @@ export async function registerAction(
     };
   }
 
-  const existing = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
-  });
-  if (existing) {
-    return {
-      error: "An account with that email already exists.",
-      values: { name: raw.name, email: raw.email },
-    };
+  if (!rateLimit(`register:${await clientIp()}`, 5, 60 * 60 * 1000).ok) {
+    return { error: TOO_MANY, values: { name: raw.name, email: raw.email } };
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  // New members start PENDING and cannot sign in until an admin activates them,
-  // so we deliberately do NOT create a session here.
-  await prisma.user.create({
-    data: {
-      name: parsed.data.name,
-      email: parsed.data.email,
-      passwordHash,
-    },
-  });
+  // New members start PENDING and are not signed in. On a duplicate email we
+  // deliberately do NOT reveal that the account exists (no enumeration): the
+  // response is identical to a fresh signup.
+  try {
+    await prisma.user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        passwordHash,
+      },
+    });
+  } catch (e) {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) {
+      throw e;
+    }
+  }
 
   redirect("/login?registered=pending");
 }
@@ -76,18 +82,25 @@ export async function loginAction(
     };
   }
 
+  if (!rateLimit(`login:${await clientIp()}:${parsed.data.email}`, 10, 15 * 60 * 1000).ok) {
+    return { error: TOO_MANY, values: { email: raw.email } };
+  }
+
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
-  if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
-    return {
-      error: "Invalid email or password.",
-      values: { email: raw.email },
-    };
+  // Burn a comparable amount of time when the email is unknown, so response
+  // latency doesn't reveal whether an account exists.
+  if (!user) {
+    await bcrypt.hash(parsed.data.password, 10);
+    return { error: "Invalid email or password.", values: { email: raw.email } };
+  }
+  if (!(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+    return { error: "Invalid email or password.", values: { email: raw.email } };
   }
 
-  // Only ACTIVE members may sign in. The credential check runs first so status
-  // is only revealed to whoever actually holds the password.
+  // Only ACTIVE members may sign in. Checked after the credential check so the
+  // status is only revealed to whoever actually holds the password.
   if (user.status !== "ACTIVE") {
     return {
       error: statusLoginMessage(user.status),
@@ -102,21 +115,6 @@ export async function loginAction(
   });
 
   redirect(safeRedirect(formData.get("next")));
-}
-
-/**
- * Message shown when a non-ACTIVE member tries to sign in. The two suspended
- * states share a message on purpose — we don't disclose a fraud flag.
- */
-function statusLoginMessage(status: string): string {
-  switch (status) {
-    case "PENDING":
-      return "Your account is awaiting approval. You'll be able to sign in once an admin activates it.";
-    case "INACTIVE":
-      return "Your account is inactive. Please contact support to reactivate it.";
-    default: // SUSPENDED, SUSPENDED_FRAUD
-      return "Your account has been suspended. Please contact support.";
-  }
 }
 
 export async function logoutAction() {
@@ -144,17 +142,19 @@ export async function adminLoginAction(
     };
   }
 
+  if (!rateLimit(`admin-login:${await clientIp()}`, 5, 15 * 60 * 1000).ok) {
+    return { error: TOO_MANY, values: { email: raw.email } };
+  }
+
   const admin = await prisma.admin.findUnique({
     where: { email: parsed.data.email },
   });
-  if (
-    !admin ||
-    !(await bcrypt.compare(parsed.data.password, admin.passwordHash))
-  ) {
-    return {
-      error: "Invalid email or password.",
-      values: { email: raw.email },
-    };
+  if (!admin) {
+    await bcrypt.hash(parsed.data.password, 10); // equalize timing
+    return { error: "Invalid email or password.", values: { email: raw.email } };
+  }
+  if (!(await bcrypt.compare(parsed.data.password, admin.passwordHash))) {
+    return { error: "Invalid email or password.", values: { email: raw.email } };
   }
 
   await createAdminSession({

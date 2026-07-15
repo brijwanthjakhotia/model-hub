@@ -85,6 +85,11 @@ describe("signSession / verifySession (users)", () => {
     const userToken = await signSession(user);
     expect(await verifyAdminSession(userToken)).toBeNull();
   });
+
+  it("an admin token is never accepted as a member session", async () => {
+    const adminToken = await signAdminSession(admin);
+    expect(await verifySession(adminToken)).toBeNull();
+  });
 });
 
 describe("signAdminSession / verifyAdminSession (admins)", () => {

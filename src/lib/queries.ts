@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import type { SortOption } from "@/lib/constants";
+import { GENDERS, type SortOption } from "@/lib/constants";
 
 export type GalleryFilters = {
   q?: string;
@@ -10,6 +10,37 @@ export type GalleryFilters = {
   experience?: string;
   sort?: SortOption;
 };
+
+/** Columns the gallery/landing card grid actually renders — avoids shipping
+ *  the long `bio` and `gallery` JSON on list queries. */
+const cardSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  headshotUrl: true,
+  category: true,
+  featured: true,
+  experience: true,
+  ratingAvg: true,
+  ratingCount: true,
+  location: true,
+  heightCm: true,
+} satisfies Prisma.ModelSelect;
+
+/** Columns the admin roster table renders. */
+const adminRowSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  headshotUrl: true,
+  category: true,
+  location: true,
+  status: true,
+  featured: true,
+  ratingAvg: true,
+  ratingCount: true,
+  createdAt: true,
+} satisfies Prisma.ModelSelect;
 
 function buildOrderBy(
   sort: SortOption | undefined,
@@ -39,12 +70,17 @@ export async function getApprovedModels(filters: GalleryFilters = {}) {
     ];
   }
   if (filters.category) where.category = filters.category;
-  if (filters.gender) where.gender = filters.gender as Prisma.ModelWhereInput["gender"];
+  // Validate against known genders so a bad ?gender=… param is ignored rather
+  // than casting an arbitrary string onto the enum filter (which throws).
+  if (filters.gender && GENDERS.some((g) => g.value === filters.gender)) {
+    where.gender = filters.gender as Prisma.ModelWhereInput["gender"];
+  }
   if (filters.experience) where.experience = filters.experience;
 
   return prisma.model.findMany({
     where,
     orderBy: buildOrderBy(filters.sort),
+    select: cardSelect,
   });
 }
 
@@ -53,12 +89,15 @@ export async function getFeaturedModels(take = 3) {
     where: { status: "APPROVED", featured: true },
     orderBy: [{ ratingAvg: "desc" }, { createdAt: "desc" }],
     take,
+    select: cardSelect,
   });
 }
 
 export async function getModelBySlug(slug: string) {
-  return prisma.model.findUnique({
-    where: { slug },
+  // APPROVED-only: a PENDING/REJECTED profile must not surface via its URL
+  // (name/bio would otherwise leak into the response even on a 404 page).
+  return prisma.model.findFirst({
+    where: { slug, status: "APPROVED" },
     include: {
       reviews: {
         orderBy: { createdAt: "desc" },
@@ -92,7 +131,7 @@ export async function getPendingModels() {
 export async function getAllModelsForAdmin() {
   return prisma.model.findMany({
     orderBy: [{ createdAt: "desc" }],
-    include: { submittedBy: { select: { name: true } } },
+    select: adminRowSelect,
   });
 }
 

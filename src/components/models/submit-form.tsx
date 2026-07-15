@@ -6,6 +6,7 @@ import { UploadCloud } from "lucide-react";
 import { createModelAction, type ModelFormState } from "@/actions/models";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { FormMessage } from "@/components/ui/form-message";
 import {
   CATEGORIES,
   EXPERIENCE_LEVELS,
@@ -167,11 +168,7 @@ export function SubmitModelForm() {
         </div>
       </section>
 
-      {state.error && (
-        <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
-          {state.error}
-        </p>
-      )}
+      <FormMessage>{state.error}</FormMessage>
 
       <div className="flex items-center gap-3 border-t border-border pt-6">
         <SubmitButton />

@@ -53,41 +53,52 @@ docblock at the very top of the file:
 
 ## Coverage
 
-Current suite: **67 tests** across 4 files, with **100% line/statement/function
-coverage** of the tested `lib` modules.
+Current suite: **93 tests** across 7 files, with **100% statement / branch /
+function / line coverage** of the tested `lib` modules.
 
 ```
-File            | % Stmts | % Branch | % Funcs | % Lines
-----------------|---------|----------|---------|--------
-All files       |     100 |    96.66 |     100 |     100
- constants.ts   |     100 |      100 |     100 |     100
- session.ts     |     100 |      100 |     100 |     100
- utils.ts       |     100 |    94.87 |     100 |     100
- validations.ts |     100 |      100 |     100 |     100
+File              | % Stmts | % Branch | % Funcs | % Lines
+------------------|---------|----------|---------|--------
+All files         |     100 |      100 |     100 |     100
+ auth-messages.ts |     100 |      100 |     100 |     100
+ constants.ts     |     100 |      100 |     100 |     100
+ session.ts       |     100 |      100 |     100 |     100
+ utils.ts         |     100 |      100 |     100 |     100
+ validations.ts   |     100 |      100 |     100 |     100
 ```
 
 ### What's covered
 
 - **`utils.ts`** — `slugify`, `initials`, `gradientFromString` (determinism),
   `parseGallery`, `parseGalleryUrls`, `pluralize`, `formatDate`, `timeAgo` (with
-  a fixed clock), and `safeRedirect` (the open-redirect guard: protocol-relative,
-  backslash, external-URL and non-string rejection).
+  a fixed clock, Date + ISO-string), and `safeRedirect` (the open-redirect guard:
+  protocol-relative, backslash, **control-char**, external-URL and non-string
+  rejection).
+- **`auth-messages.ts`** — `statusLoginMessage` for each non-ACTIVE status,
+  including that the two suspended states share a message (no fraud disclosure).
 - **`validations.ts`** — every schema: password matching, email normalisation,
   measurement coercion and range checks, enum rejection, review bounds, and the
   admin decision enum.
 - **`session.ts`** — sign/verify round-trip, and `null` for missing / malformed /
   expired / wrong-secret / wrong-shape tokens, plus the "missing `AUTH_SECRET`"
-  error path.
+  error path; and cross-principal rejection (an admin token is never a member
+  session, and vice-versa via the `kind` claim).
+- **Server actions** (`actions-auth`, `actions-admins`) — with a mocked Prisma:
+  `registerAction` creates a PENDING user without a session and doesn't disclose
+  a duplicate email; `loginAction` gates on ACTIVE, rejects bad credentials
+  generically, and rate-limits; `deleteAdminAction` blocks self-delete and the
+  last super admin.
 - **Components** — `RatingStars` fill math (including fractional and clamped
   values), `StatusBadge` labels, and `Badge` tone classes.
 
 ## What is intentionally not unit-tested
 
-`lib/auth.ts`, `lib/queries.ts` and the server actions depend on the Next.js
-request context (`cookies()`, `redirect()`), the database, and `server-only`, so
-they are exercised through **end-to-end verification** instead (documented in the
-root README: login sets a cookie and redirects; approving a pending model flips
-its status in the DB). This keeps the unit suite fast and free of brittle mocks.
+`lib/auth.ts`, `lib/queries.ts`, `lib/rate-limit.ts` and `middleware.ts` depend
+on the Next.js request context (`cookies()`, `headers()`, `redirect()`), the
+database, and `server-only`, so they are exercised through **end-to-end
+verification** instead (login sets a cookie and redirects; a suspended member /
+deleted admin is cut off on the next request; approving a pending model flips its
+status). This keeps the unit suite fast and free of brittle mocks.
 
 ## A bug the tests caught
 

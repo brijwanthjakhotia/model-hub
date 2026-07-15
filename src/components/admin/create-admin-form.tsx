@@ -5,6 +5,8 @@ import { useFormStatus } from "react-dom";
 import { createAdminAction, type AdminFormState } from "@/actions/admins";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
+import { FormMessage } from "@/components/ui/form-message";
+import { ADMIN_ROLES, ADMIN_ROLE_META } from "@/lib/constants";
 
 const initial: AdminFormState = {};
 
@@ -59,22 +61,17 @@ export function CreateAdminForm() {
             defaultValue={state.values?.role ?? "MODERATOR"}
             required
           >
-            <option value="MODERATOR">Moderator</option>
-            <option value="SUPER_ADMIN">Super admin</option>
+            {ADMIN_ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ADMIN_ROLE_META[r].label}
+              </option>
+            ))}
           </Select>
         </Field>
       </div>
 
-      {state.error && (
-        <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm font-medium text-danger">
-          {state.error}
-        </p>
-      )}
-      {state.success && (
-        <p className="rounded-lg bg-success/10 px-3 py-2 text-sm font-medium text-success">
-          {state.success}
-        </p>
-      )}
+      <FormMessage>{state.error}</FormMessage>
+      <FormMessage tone="success">{state.success}</FormMessage>
 
       <SubmitButton />
     </form>
