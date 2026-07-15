@@ -161,17 +161,22 @@ covers:
   `requireUser`, so a suspended member can't submit talent or post reviews even
   by calling the action directly.
 
-The stale session cookie is left in place (a Server Component cannot clear
-cookies) but is **inert**: every protected route revalidates against the DB, and
-the login page won't bounce a non-`ACTIVE` session back in. `getCurrentUser`
-stays a cheap JWT-only read for display (header, public pages), so the extra DB
-lookup only happens where access is actually granted.
+A Server Component can't clear cookies, so a cut-off member is redirected to the
+**`/session/blocked`** route handler, which clears the (inert) session cookie
+and then shows `/login?blocked=1`. `getCurrentUser` stays a cheap JWT-only read
+for display (header, public pages), so the extra DB lookup only happens where
+access is actually granted.
 
-> **Remaining nicety:** the header still shows a just-suspended member as
-> "signed in" until they hit a protected route or re-load after the cookie
-> clears, and the review form is visible on a profile page though submitting it
-> is blocked. Both are cosmetic — no protected action succeeds. Closing them
-> would mean a DB read in the root layout / profile page.
+Two spots that read the JWT for display also confirm status so the UI matches
+reality:
+
+- The **profile page** looks up the signed-in member's status and shows a "your
+  account isn't active" notice instead of the review form for non-`ACTIVE`
+  members (submitting was already blocked by `addReviewAction`'s `requireUser`).
+- Because `/session/blocked` clears the cookie, the header stops showing a
+  just-cut-off member as signed in after their first protected request. A member
+  who never touches a protected route keeps a cosmetic "signed in" header until
+  the token expires — harmless, since no protected action succeeds.
 
 ## Routing note: the `(console)` group
 

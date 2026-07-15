@@ -50,6 +50,7 @@ src/
 │   ├── submit/page.tsx       # Submit-talent form (auth required)
 │   ├── login/page.tsx
 │   ├── register/page.tsx
+│   ├── session/blocked/route.ts  # Clears cookie + redirects when cut off
 │   ├── dashboard/page.tsx    # A user's own submissions (auth required)
 │   └── admin/
 │       ├── login/page.tsx    # Admin sign in (public — outside the guard)
