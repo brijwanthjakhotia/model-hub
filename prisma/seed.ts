@@ -1,4 +1,10 @@
-import { PrismaClient, Gender, ModelStatus, AdminRole } from "@prisma/client";
+import {
+  PrismaClient,
+  Gender,
+  ModelStatus,
+  AdminRole,
+  UserStatus,
+} from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -353,11 +359,13 @@ async function main() {
   });
 
   // Public members: submit talent and leave reviews. No role — no admin access.
+  // Review authors are ACTIVE so the demo member login works out of the box.
   const casting = await prisma.user.create({
     data: {
       name: "Casting Director",
       email: "casting@modelhub.test",
       passwordHash,
+      status: UserStatus.ACTIVE,
       avatarUrl: img("castingavatar", 200, 200),
     },
   });
@@ -367,6 +375,7 @@ async function main() {
       name: "Studio Photographer",
       email: "photographer@modelhub.test",
       passwordHash,
+      status: UserStatus.ACTIVE,
       avatarUrl: img("photoavatar", 200, 200),
     },
   });
@@ -376,7 +385,30 @@ async function main() {
       name: "Jordan Rivera",
       email: "user@modelhub.test",
       passwordHash,
+      status: UserStatus.ACTIVE,
       avatarUrl: img("user1avatar", 200, 200),
+    },
+  });
+
+  // A couple of non-ACTIVE members so the members console and the login gate are
+  // demonstrable out of the box.
+  await prisma.user.create({
+    data: {
+      name: "Sam Pending",
+      email: "pending@modelhub.test",
+      passwordHash,
+      status: UserStatus.PENDING,
+      avatarUrl: img("pendingavatar", 200, 200),
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      name: "Casey Suspended",
+      email: "suspended@modelhub.test",
+      passwordHash,
+      status: UserStatus.SUSPENDED,
+      avatarUrl: img("suspendedavatar", 200, 200),
     },
   });
 
@@ -461,8 +493,10 @@ async function main() {
   console.log("\nAdmin console (/admin/login):");
   console.log(`  Super admin →  ${superAdmin.email} / superadmin1`);
   console.log(`  Moderator   →  ${moderator.email} / moderator1`);
-  console.log("\nMember login (/login):");
-  console.log("  User        →  user@modelhub.test / password123");
+  console.log("\nMember login (/login) — password123, only ACTIVE can sign in:");
+  console.log("  Active    →  user@modelhub.test");
+  console.log("  Pending   →  pending@modelhub.test    (blocked until approved)");
+  console.log("  Suspended →  suspended@modelhub.test  (blocked)");
 }
 
 main()

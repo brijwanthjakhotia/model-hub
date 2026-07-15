@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { reviewSchema } from "@/lib/validations";
 
 export type ReviewState = {
@@ -32,8 +31,6 @@ export async function addReviewAction(
   _prev: ReviewState,
   formData: FormData,
 ): Promise<ReviewState> {
-  const user = await getCurrentUser();
-
   const parsed = reviewSchema.safeParse({
     modelId: formData.get("modelId"),
     rating: formData.get("rating"),
@@ -53,9 +50,8 @@ export async function addReviewAction(
     return { error: "This profile is not available for reviews." };
   }
 
-  if (!user) {
-    redirect(`/login?next=/models/${model.slug}`);
-  }
+  // Redirects unauthenticated users to login, and blocks non-ACTIVE members.
+  const user = await requireUser(`/login?next=/models/${model.slug}`);
 
   if (model.submittedById === user.id) {
     return { error: "You cannot review a profile you submitted." };

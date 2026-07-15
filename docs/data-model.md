@@ -21,6 +21,7 @@ erDiagram
     string name
     string email UK
     string passwordHash
+    UserStatus status
     string avatarUrl
     datetime createdAt
   }
@@ -79,6 +80,7 @@ erDiagram
 | Enum | Values |
 | --- | --- |
 | `AdminRole` | `SUPER_ADMIN`, `MODERATOR` |
+| `UserStatus` | `PENDING`, `ACTIVE`, `INACTIVE`, `SUSPENDED_FRAUD`, `SUSPENDED` |
 | `ModelStatus` | `PENDING`, `APPROVED`, `REJECTED` |
 | `Gender` | `FEMALE`, `MALE`, `NONBINARY` |
 
@@ -90,11 +92,20 @@ erDiagram
 | `name` | `String` | display name |
 | `email` | `String` | unique; stored lowercased |
 | `passwordHash` | `String` | bcrypt hash (never a plaintext password) |
+| `status` | `UserStatus` | defaults to `PENDING`; indexed |
 | `avatarUrl` | `String?` | optional |
 | `createdAt` | `DateTime` | |
 
 Members have **no role** — the app has no notion of an "admin user". Admin
 access is a separate identity in the `Admin` table.
+
+**Status** gates access: only `ACTIVE` members can log in (enforced in
+`loginAction`) **and** stay in — `requireUser` re-checks status on every
+protected page and mutation, so suspending a member cuts them off on their next
+request. New registrations start `PENDING` and must be activated by an admin
+from `/admin/members`; `INACTIVE`, `SUSPENDED` and `SUSPENDED_FRAUD` are also
+blocked (the two suspended states share a login message so a fraud flag is never
+disclosed). See [authentication](./authentication.md#account-status).
 
 **Relations**
 
@@ -187,8 +198,9 @@ first) and creates:
 
 - 2 admins — 1 `SUPER_ADMIN` and 1 `MODERATOR` (the moderator is recorded as the
   reviewer on approved/rejected profiles).
-- 3 users — a casting director, a photographer and a general user, used as
-  review authors.
+- 5 users — a casting director, a photographer and a general member (all
+  `ACTIVE`, used as review authors), plus one `PENDING` and one `SUSPENDED`
+  member to exercise the members console and the login gate.
 - 13 talent profiles — 9 approved (several featured), 3 pending, 1 rejected
   (with an admin note), across all categories/genders.
 - 16 reviews, with the rating cache filled in.

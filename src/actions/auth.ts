@@ -47,7 +47,9 @@ export async function registerAction(
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  const user = await prisma.user.create({
+  // New members start PENDING and cannot sign in until an admin activates them,
+  // so we deliberately do NOT create a session here.
+  await prisma.user.create({
     data: {
       name: parsed.data.name,
       email: parsed.data.email,
@@ -55,13 +57,7 @@ export async function registerAction(
     },
   });
 
-  await createSession({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-  });
-
-  redirect(safeRedirect(formData.get("next")));
+  redirect("/login?registered=pending");
 }
 
 export async function loginAction(
@@ -90,6 +86,15 @@ export async function loginAction(
     };
   }
 
+  // Only ACTIVE members may sign in. The credential check runs first so status
+  // is only revealed to whoever actually holds the password.
+  if (user.status !== "ACTIVE") {
+    return {
+      error: statusLoginMessage(user.status),
+      values: { email: raw.email },
+    };
+  }
+
   await createSession({
     id: user.id,
     name: user.name,
@@ -97,6 +102,21 @@ export async function loginAction(
   });
 
   redirect(safeRedirect(formData.get("next")));
+}
+
+/**
+ * Message shown when a non-ACTIVE member tries to sign in. The two suspended
+ * states share a message on purpose — we don't disclose a fraud flag.
+ */
+function statusLoginMessage(status: string): string {
+  switch (status) {
+    case "PENDING":
+      return "Your account is awaiting approval. You'll be able to sign in once an admin activates it.";
+    case "INACTIVE":
+      return "Your account is inactive. Please contact support to reactivate it.";
+    default: // SUSPENDED, SUSPENDED_FRAUD
+      return "Your account has been suspended. Please contact support.";
+  }
 }
 
 export async function logoutAction() {

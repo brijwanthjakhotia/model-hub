@@ -5,6 +5,7 @@ import {
   registerSchema,
   reviewDecisionSchema,
   reviewSchema,
+  userStatusSchema,
 } from "@/lib/validations";
 
 describe("registerSchema", () => {
@@ -156,5 +157,27 @@ describe("reviewDecisionSchema", () => {
 
   it("rejects an invalid decision", () => {
     expect(reviewDecisionSchema.safeParse({ modelId: "x", decision: "MAYBE" }).success).toBe(false);
+  });
+});
+
+describe("userStatusSchema", () => {
+  it("accepts every valid member status", () => {
+    for (const status of [
+      "PENDING",
+      "ACTIVE",
+      "INACTIVE",
+      "SUSPENDED_FRAUD",
+      "SUSPENDED",
+    ]) {
+      expect(userStatusSchema.safeParse({ userId: "u1", status }).success).toBe(true);
+    }
+  });
+
+  it("rejects an unknown status", () => {
+    expect(userStatusSchema.safeParse({ userId: "u1", status: "BANNED" }).success).toBe(false);
+  });
+
+  it("requires a userId", () => {
+    expect(userStatusSchema.safeParse({ userId: "", status: "ACTIVE" }).success).toBe(false);
   });
 });

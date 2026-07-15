@@ -9,8 +9,8 @@ All writes are **Server Actions** (`"use server"`); all reads go through the
 
 | Action | Signature | Auth | Validation | Effect |
 | --- | --- | --- | --- | --- |
-| `registerAction` | `(prev, formData) => AuthState` | public | `registerSchema` | Rejects duplicate email; bcrypt-hashes password; creates **user**; sets `mh_session`; redirects to `safeRedirect(next)`. |
-| `loginAction` | `(prev, formData) => AuthState` | public | `loginSchema` | Verifies **user** credentials with `bcrypt.compare`; sets `mh_session`; redirects. Returns a generic error on failure. |
+| `registerAction` | `(prev, formData) => AuthState` | public | `registerSchema` | Rejects duplicate email; bcrypt-hashes password; creates a **`PENDING`** user; **does not** sign in; redirects to `/login?registered=pending`. |
+| `loginAction` | `(prev, formData) => AuthState` | public | `loginSchema` | Verifies **user** credentials with `bcrypt.compare`, then rejects unless `status == ACTIVE`; sets `mh_session`; redirects. Returns a generic error on failure. |
 | `logoutAction` | `() => void` | any | — | Clears `mh_session`; redirects to `/`. |
 | `adminLoginAction` | `(prev, formData) => AuthState` | public | `loginSchema` | Verifies credentials against the **`Admin`** table; sets `mh_admin`; redirects to `safeRedirect(next, "/admin")`. |
 | `adminLogoutAction` | `() => void` | any | — | Clears `mh_admin`; redirects to `/admin/login`. |
@@ -22,6 +22,12 @@ All writes are **Server Actions** (`"use server"`); all reads go through the
 | `createAdminAction` | `(prev, formData) => AdminFormState` | **super admin** | `createAdminSchema` | Rejects duplicate email; bcrypt-hashes password; creates an `Admin` with the chosen role; revalidates `/admin/admins`. |
 | `deleteAdminAction` | `(formData) => void` | **super admin** | — | Removes an admin; refuses to delete yourself or the last super admin; revalidates `/admin/admins`. |
 
+### Members — [`src/actions/members.ts`](../src/actions/members.ts)
+
+| Action | Signature | Auth | Validation | Effect |
+| --- | --- | --- | --- | --- |
+| `updateMemberStatusAction` | `(formData) => void` | **admin** | `userStatusSchema` | Sets a member's `status` (e.g. `PENDING` → `ACTIVE`, or a suspend state); revalidates `/admin/members`. Gates future sign-ins. |
+
 `AuthState = { error?, fieldErrors?, values? }` (and `AdminFormState`, which adds
 `success?`) is returned to the form via `useActionState` when there's nothing to
 redirect to.
@@ -30,7 +36,7 @@ redirect to.
 
 | Action | Signature | Auth | Validation | Effect |
 | --- | --- | --- | --- | --- |
-| `createModelAction` | `(prev, formData) => ModelFormState` | signed-in | `modelSchema` | Builds a unique slug, parses gallery URLs, creates a `PENDING` profile owned by the user; revalidates `/dashboard` & `/admin/approvals`; redirects to `/dashboard?submitted=1`. |
+| `createModelAction` | `(prev, formData) => ModelFormState` | **active member** (`requireUser`) | `modelSchema` | Builds a unique slug, parses gallery URLs, creates a `PENDING` profile owned by the user; revalidates `/dashboard` & `/admin/approvals`; redirects to `/dashboard?submitted=1`. |
 | `decideModelAction` | `(formData) => void` | **admin** | `reviewDecisionSchema` | Sets `status` to `APPROVED`/`REJECTED` with an optional note, stamps `reviewedById`/`reviewedAt`; revalidates admin pages & `/models`. |
 | `toggleFeaturedAction` | `(formData) => void` | **admin** | — | Flips `featured`; revalidates `/`, `/models`, `/admin/models`. |
 | `deleteModelAction` | `(formData) => void` | **admin** | — | Deletes the profile (reviews cascade); revalidates `/models` & `/admin/models`. |
@@ -39,7 +45,7 @@ redirect to.
 
 | Action | Signature | Auth | Validation | Effect |
 | --- | --- | --- | --- | --- |
-| `addReviewAction` | `(prev, formData) => ReviewState` | signed-in | `reviewSchema` | Enforces "model approved", "not your own profile", one-per-user (`upsert`); **recomputes the rating cache**; revalidates the profile. Redirects anonymous users to login. |
+| `addReviewAction` | `(prev, formData) => ReviewState` | **active member** (`requireUser`) | `reviewSchema` | Enforces "model approved", "not your own profile", one-per-user (`upsert`); **recomputes the rating cache**; revalidates the profile. Redirects anonymous users to login and blocks non-`ACTIVE` members. |
 
 ### Progressive enhancement
 
@@ -60,7 +66,8 @@ Read-only, `server-only`, called directly from Server Components.
 | `getPendingModels()` | pending models + submitter info | Admin approvals/overview |
 | `getAllModelsForAdmin()` | every model (newest first) | Admin roster |
 | `getUserSubmissions(userId)` | a user's own submissions | User dashboard |
-| `getAdminStats()` | totals by status + review/user counts | Admin overview/layout |
+| `getMembers()` | every member + status + submission/review counts | Admin members |
+| `getAdminStats()` | totals by status + review/user counts + `pendingMembers` | Admin overview/layout |
 | `getSiteStats()` | approved count, review count, distinct cities | Landing stats |
 
 ## Revalidation strategy

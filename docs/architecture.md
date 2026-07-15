@@ -58,10 +58,12 @@ src/
 │           ├── page.tsx      # Overview
 │           ├── approvals/page.tsx  # Approval queue
 │           ├── models/page.tsx     # Roster table
+│           ├── members/page.tsx    # Member list + status control
 │           └── admins/page.tsx     # Manage admins (super admin only)
 ├── actions/                  # Server actions (write operations)
 │   ├── auth.ts               # register / login / logout / admin login+logout
 │   ├── admins.ts             # create / delete admin (super admin)
+│   ├── members.ts            # change member status (admin)
 │   ├── models.ts             # create / decide / feature / delete
 │   └── reviews.ts            # add/update review + rating recompute
 ├── components/

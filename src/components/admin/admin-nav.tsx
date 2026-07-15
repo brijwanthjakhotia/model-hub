@@ -2,20 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, ListChecks, ShieldCheck, Users } from "lucide-react";
+import { LayoutGrid, ListChecks, ShieldCheck, UserCog, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const baseTabs = [
   { href: "/admin", label: "Overview", icon: LayoutGrid },
   { href: "/admin/approvals", label: "Approvals", icon: ListChecks },
   { href: "/admin/models", label: "All talent", icon: Users },
+  { href: "/admin/members", label: "Members", icon: UserCog },
 ];
 
 export function AdminNav({
   pendingCount,
+  pendingMembers = 0,
   canManageAdmins = false,
 }: {
   pendingCount: number;
+  pendingMembers?: number;
   canManageAdmins?: boolean;
 }) {
   const pathname = usePathname();
@@ -44,6 +47,11 @@ export function AdminNav({
             {tab.href === "/admin/approvals" && pendingCount > 0 && (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-xs text-warning-foreground">
                 {pendingCount}
+              </span>
+            )}
+            {tab.href === "/admin/members" && pendingMembers > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-xs text-warning-foreground">
+                {pendingMembers}
               </span>
             )}
           </Link>
