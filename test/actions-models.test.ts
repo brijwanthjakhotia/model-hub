@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { requireUser, requireAdmin, redirect, tx, prisma } = vi.hoisted(() => {
+const { requireUser, requireAdmin, redirect, rateLimit, tx, prisma } = vi.hoisted(() => {
   const tx = { model: { findUnique: vi.fn(), update: vi.fn() } };
   return {
     requireUser: vi.fn(async () => ({ id: "u1", name: "J", email: "j@x.com" })),
@@ -13,6 +13,7 @@ const { requireUser, requireAdmin, redirect, tx, prisma } = vi.hoisted(() => {
     redirect: vi.fn((u: string) => {
       throw new Error(`REDIRECT:${u}`);
     }),
+    rateLimit: vi.fn(() => ({ ok: true, retryAfterSec: 0 })),
     tx,
     prisma: {
       model: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
@@ -24,6 +25,7 @@ const { requireUser, requireAdmin, redirect, tx, prisma } = vi.hoisted(() => {
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("@/lib/auth", () => ({ requireUser, requireAdmin }));
+vi.mock("@/lib/rate-limit", () => ({ rateLimit }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
 import { Prisma } from "@prisma/client";
@@ -53,6 +55,7 @@ const validModel = {
 const p2002 = new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "test" });
 const p2025 = new Prisma.PrismaClientKnownRequestError("gone", { code: "P2025", clientVersion: "test" });
 
+beforeEach(() => rateLimit.mockReturnValue({ ok: true, retryAfterSec: 0 }));
 afterEach(() => vi.clearAllMocks());
 
 describe("createModelAction", () => {
@@ -83,6 +86,27 @@ describe("createModelAction", () => {
     expect(state.fieldErrors).toBeTruthy();
     expect(prisma.model.create).not.toHaveBeenCalled();
   });
+
+  it("throttles a member who submits too quickly", async () => {
+    rateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 60 });
+    const state = await createModelAction({}, form(validModel));
+    expect(state.error).toMatch(/too quickly/i);
+    expect(prisma.model.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("toggleFeaturedAction (guard)", () => {
+  it("refuses to feature a non-APPROVED profile", async () => {
+    tx.model.findUnique.mockResolvedValueOnce({
+      featured: false,
+      slug: "pending-one",
+      status: "PENDING",
+    });
+    await expect(toggleFeaturedAction(form({ modelId: "m1" }))).rejects.toThrow(
+      /only approved/i,
+    );
+    expect(tx.model.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("decideModelAction", () => {
@@ -112,7 +136,11 @@ describe("decideModelAction", () => {
 
 describe("toggleFeaturedAction", () => {
   it("flips featured atomically inside a transaction", async () => {
-    tx.model.findUnique.mockResolvedValueOnce({ featured: false, slug: "casey-newface" });
+    tx.model.findUnique.mockResolvedValueOnce({
+      featured: false,
+      slug: "casey-newface",
+      status: "APPROVED",
+    });
     await toggleFeaturedAction(form({ modelId: "m1" }));
     expect(tx.model.update).toHaveBeenCalledWith({
       where: { id: "m1" },

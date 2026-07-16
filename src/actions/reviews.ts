@@ -78,24 +78,36 @@ export async function addReviewAction(
 
   // Write the review and recompute the cached rating atomically, so the two can
   // never diverge (crash between them, or interleaved concurrent reviews).
-  await prisma.$transaction(async (tx) => {
-    await tx.review.upsert({
-      where: { modelId_authorId: { modelId: model.id, authorId: user.id } },
-      create: {
-        modelId: model.id,
-        authorId: user.id,
-        rating: parsed.data.rating,
-        title: parsed.data.title || null,
-        body: parsed.data.body,
-      },
-      update: {
-        rating: parsed.data.rating,
-        title: parsed.data.title || null,
-        body: parsed.data.body,
-      },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.review.upsert({
+        where: { modelId_authorId: { modelId: model.id, authorId: user.id } },
+        create: {
+          modelId: model.id,
+          authorId: user.id,
+          rating: parsed.data.rating,
+          title: parsed.data.title || null,
+          body: parsed.data.body,
+        },
+        update: {
+          rating: parsed.data.rating,
+          title: parsed.data.title || null,
+          body: parsed.data.body,
+        },
+      });
+      await recomputeRating(tx, model.id);
     });
-    await recomputeRating(tx, model.id);
-  });
+  } catch (e) {
+    // The model can be deleted between the check above and this write; the FK
+    // violation (or a missing row) becomes the same friendly message.
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      (e.code === "P2003" || e.code === "P2025")
+    ) {
+      return { error: "This profile is not available for reviews." };
+    }
+    throw e;
+  }
 
   revalidatePath(`/models/${model.slug}`);
   return { success: true };

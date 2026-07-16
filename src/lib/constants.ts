@@ -65,8 +65,8 @@ export const SORT_OPTIONS = [
 
 export type SortOption = (typeof SORT_OPTIONS)[number]["value"];
 
-export const MODEL_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const satisfies readonly ModelStatus[];
-export type ModelStatusValue = (typeof MODEL_STATUSES)[number];
+/** Alias of the Prisma enum; `STATUS_META` below is the exhaustiveness guard. */
+export type ModelStatusValue = ModelStatus;
 
 export const STATUS_META: Record<
   ModelStatus,

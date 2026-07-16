@@ -12,7 +12,7 @@ All writes are **Server Actions** (`"use server"`); all reads go through the
 | `registerAction` | `(prev, formData) => AuthState` | public (rate-limited) | `registerSchema` | Creates a **`PENDING`** user; **does not** sign in; redirects to `/login?registered=pending`. A duplicate email yields the *same* redirect (no enumeration). |
 | `loginAction` | `(prev, formData) => AuthState` | public (rate-limited) | `loginSchema` | Verifies **user** credentials with `bcrypt.compare` (constant-time on unknown email), then rejects unless `status == ACTIVE`; sets `mh_session`; redirects. Generic error on failure. |
 | `logoutAction` | `() => void` | any | — | Clears `mh_session`; redirects to `/`. |
-| `adminLoginAction` | `(prev, formData) => AuthState` | public | `loginSchema` | Verifies credentials against the **`Admin`** table; sets `mh_admin`; redirects to `safeRedirect(next, "/admin")`. |
+| `adminLoginAction` | `(prev, formData) => AuthState` | public (rate-limited) | `loginSchema` | Verifies credentials against the **`Admin`** table (constant-time on unknown email); sets `mh_admin`; redirects to `safeRedirect(next, "/admin")`. |
 | `adminLogoutAction` | `() => void` | any | — | Clears `mh_admin`; redirects to `/admin/login`. |
 
 ### Admins — [`src/actions/admins.ts`](../src/actions/admins.ts)

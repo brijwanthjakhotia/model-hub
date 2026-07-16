@@ -34,6 +34,17 @@ describe("RatingStars", () => {
     const { container } = render(<RatingStars value={9} />);
     expect(fillWidths(container)).toEqual(["100%", "100%", "100%", "100%", "100%"]);
   });
+
+  it("is decorative (aria-hidden) with no label", () => {
+    const { container } = render(<RatingStars value={4} />);
+    expect(container.firstElementChild).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("exposes a labelled img role when a label is given", () => {
+    render(<RatingStars value={4} label="Rated 4 out of 5" />);
+    const el = screen.getByRole("img", { name: "Rated 4 out of 5" });
+    expect(el).not.toHaveAttribute("aria-hidden");
+  });
 });
 
 describe("StatusBadge", () => {

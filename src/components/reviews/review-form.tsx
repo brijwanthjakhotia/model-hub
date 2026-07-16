@@ -18,7 +18,10 @@ export function ReviewForm({ modelId }: { modelId: string }) {
 
   if (state.success) {
     return (
-      <div className="card-surface flex flex-col items-center gap-2 p-8 text-center">
+      <div
+        role="status"
+        className="card-surface flex flex-col items-center gap-2 p-8 text-center"
+      >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-success">
           <Star className="h-6 w-6 fill-current" />
         </div>

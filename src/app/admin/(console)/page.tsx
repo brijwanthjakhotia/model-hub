@@ -13,10 +13,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ModelImage } from "@/components/ui/model-image";
 import { getAdminStats, getPendingModels } from "@/lib/queries";
 import { timeAgo } from "@/lib/utils";
+import { requireAdmin } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Admin overview" };
 
 export default async function AdminOverviewPage() {
+  // Page-level re-check (the layout guard doesn't re-run on soft navigations).
+  await requireAdmin();
   const [stats, pending] = await Promise.all([
     getAdminStats(),
     getPendingModels(),

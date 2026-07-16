@@ -3,10 +3,14 @@ import { CheckCircle2 } from "lucide-react";
 import { ApprovalCard } from "@/components/admin/approval-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getPendingModels } from "@/lib/queries";
+import { requireAdmin } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Approvals" };
 
 export default async function ApprovalsPage() {
+  // Re-check at the page level: the (console) layout guard doesn't re-run on
+  // soft client-side navigations, so a just-deleted admin must be cut off here.
+  await requireAdmin();
   const pending = await getPendingModels();
 
   return (
