@@ -53,18 +53,20 @@ docblock at the very top of the file:
 
 ## Coverage
 
-Current suite: **93 tests** across 7 files, with **100% statement / branch /
-function / line coverage** of the tested `lib` modules.
+Current suite: **145 tests**. Coverage is measured across the security-critical
+surface — the `lib` layer, **every server action**, and the **middleware** — not
+just the pure helpers, so the headline number reflects reality (~**94% lines**,
+~86% branch). `session.ts`, `constants.ts`, `utils.ts`, `validations.ts`,
+`auth-messages.ts` and `middleware.ts` sit at 100%; the remainder is cookie
+setters and the header-parsing half of `rate-limit.ts`.
 
 ```
-File              | % Stmts | % Branch | % Funcs | % Lines
-------------------|---------|----------|---------|--------
-All files         |     100 |      100 |     100 |     100
- auth-messages.ts |     100 |      100 |     100 |     100
- constants.ts     |     100 |      100 |     100 |     100
- session.ts       |     100 |      100 |     100 |     100
- utils.ts         |     100 |      100 |     100 |     100
- validations.ts   |     100 |      100 |     100 |     100
+File            | % Stmts | % Branch | % Funcs | % Lines
+----------------|---------|----------|---------|--------
+All files       |   94.46 |   85.54  |   96.36 |   94.46
+ src/middleware |     100 |     100  |     100 |     100
+ src/actions/*  |   ~90   |   ~72    |   ~90   |   ~90
+ src/lib/*      |   ~94   |   ~98    |   ~88   |   ~94
 ```
 
 ### What's covered
@@ -83,22 +85,34 @@ All files         |     100 |      100 |     100 |     100
   expired / wrong-secret / wrong-shape tokens, plus the "missing `AUTH_SECRET`"
   error path; and cross-principal rejection (an admin token is never a member
   session, and vice-versa via the `kind` claim).
-- **Server actions** (`actions-auth`, `actions-admins`) — with a mocked Prisma:
-  `registerAction` creates a PENDING user without a session and doesn't disclose
-  a duplicate email; `loginAction` gates on ACTIVE, rejects bad credentials
-  generically, and rate-limits; `deleteAdminAction` blocks self-delete and the
-  last super admin.
-- **Components** — `RatingStars` fill math (including fractional and clamped
-  values), `StatusBadge` labels, and `Badge` tone classes.
+- **`rate-limit.ts`** — `rateLimit` window logic (allow N / block N+1, reset,
+  `retryAfterSec`, independent keys, memory-bound eviction) via an injectable
+  `now`; and that `clientIp` ignores a spoofable `X-Forwarded-For` without a
+  configured trusted proxy.
+- **`middleware.ts`** — public admin-login pass-through; member cookie never
+  accepted as admin; moderator vs SUPER_ADMIN route gating; member-area gating.
+- **Auth guards** (`auth-guards`) — with mocked cookies/prisma and *real* token
+  signing: `requireUser` returns the fresh DB record and cuts off a
+  suspended/deleted member (`/session/blocked`); `requireAdmin` cuts off a
+  deleted admin (`/session/admin-blocked`); `requireSuperAdmin` honours a
+  demotion immediately; the cookie set/clear helpers.
+- **Server actions** (`actions-auth`, `-admins`, `-members`, `-models`,
+  `-reviews`) — with a mocked Prisma: register creates a PENDING user without a
+  session and doesn't disclose a duplicate email; login/admin-login gate,
+  reject generically and rate-limit; `deleteAdminAction` clears reviewer
+  metadata and rolls back on the last super admin; `createModelAction` retries
+  the slug on collision; `addReviewAction` authenticates before disclosure,
+  blocks self-review, and writes+recomputes in one transaction; P2025 mapping.
+- **Components** — `RatingStars` fill math, `StatusBadge` labels, `Badge` tones.
 
-## What is intentionally not unit-tested
+## What is intentionally not measured
 
-`lib/auth.ts`, `lib/queries.ts`, `lib/rate-limit.ts` and `middleware.ts` depend
-on the Next.js request context (`cookies()`, `headers()`, `redirect()`), the
-database, and `server-only`, so they are exercised through **end-to-end
-verification** instead (login sets a cookie and redirects; a suspended member /
-deleted admin is cut off on the next request; approving a pending model flips its
-status). This keeps the unit suite fast and free of brittle mocks.
+`lib/queries.ts` (pure Prisma query shapes, no branching) and the Prisma client
+singleton are excluded and exercised through **end-to-end verification** instead
+(login sets a cookie and redirects; a suspended member / deleted admin is cut off
+on the next request; approving a pending model flips its status). `clientIp`'s
+trusted-proxy branch and the cookie setters lean on the Next.js request context;
+the rest of that surface is now unit-tested with light mocks.
 
 ## A bug the tests caught
 

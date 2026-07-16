@@ -42,7 +42,7 @@ export default async function AdminLoginPage({
         </div>
 
         {blocked && (
-          <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
+          <div role="status" className="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
             <p className="font-medium">You&apos;ve been signed out.</p>
             <p className="mt-0.5">
               Your admin access was changed. Sign in again if you still have

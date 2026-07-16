@@ -110,9 +110,10 @@ npm test              # run once
 npm run test:coverage # with coverage report
 ```
 
-The suite has **67 tests** with **100% line coverage** of the `lib` layer
-(utilities, Zod validation, JWT session crypto) plus component tests for the
-rating stars and badges. See [docs/testing.md](docs/testing.md) for details.
+The suite has **145 tests** covering the `lib` layer (utilities, Zod validation,
+JWT session crypto, rate limiter), the **server actions**, the auth **guards**
+and the **middleware** — ~94% line coverage across that measured surface — plus
+component tests. See [docs/testing.md](docs/testing.md) for details.
 
 ## Documentation
 

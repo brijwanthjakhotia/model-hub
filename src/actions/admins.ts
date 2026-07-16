@@ -69,21 +69,30 @@ export async function deleteAdminAction(formData: FormData) {
     throw new Error("You cannot delete your own admin account.");
   }
 
-  // Count + delete in one transaction so two concurrent deletes can't both pass
-  // the "last super admin" check and leave the console with zero super admins.
   await prisma.$transaction(async (tx) => {
     const target = await tx.admin.findUnique({
       where: { id: adminId },
       select: { role: true },
     });
-    if (!target) throw new Error("Admin not found");
-    if (target.role === "SUPER_ADMIN") {
-      const superAdmins = await tx.admin.count({ where: { role: "SUPER_ADMIN" } });
-      if (superAdmins <= 1) {
-        throw new Error("Cannot remove the last super admin.");
-      }
-    }
+    if (!target) throw new Error("That admin no longer exists.");
+
+    // Clear the approval metadata this admin authored as a unit, so no model is
+    // left with a decision timestamp/note but a null reviewer (the FK would
+    // otherwise SET NULL only `reviewedById`).
+    await tx.model.updateMany({
+      where: { reviewedById: adminId },
+      data: { reviewedById: null, reviewedAt: null, reviewNote: null },
+    });
+
     await tx.admin.delete({ where: { id: adminId } });
+
+    // Recount AFTER the delete (not before): under SQLite's serialized writes a
+    // concurrent delete blocks until this commits, so a delete-then-check can't
+    // let two requests both leave zero super admins. Throwing rolls it back.
+    if (target.role === "SUPER_ADMIN") {
+      const remaining = await tx.admin.count({ where: { role: "SUPER_ADMIN" } });
+      if (remaining < 1) throw new Error("Cannot remove the last super admin.");
+    }
   });
 
   revalidatePath("/admin/admins");

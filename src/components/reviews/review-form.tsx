@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Star } from "lucide-react";
 import { addReviewAction, type ReviewState } from "@/actions/reviews";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/field";
+import { Field, FieldError, Input, Textarea } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { cn } from "@/lib/utils";
 
@@ -68,11 +68,7 @@ export function ReviewForm({ modelId }: { modelId: string }) {
             </button>
           ))}
         </div>
-        {state.fieldErrors?.rating && (
-          <p className="mt-1.5 text-xs font-medium text-danger">
-            {state.fieldErrors.rating[0]}
-          </p>
-        )}
+        <FieldError messages={state.fieldErrors?.rating} />
       </div>
 
       <Field label="Title" htmlFor="title" error={state.fieldErrors?.title}>

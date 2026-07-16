@@ -228,10 +228,14 @@ resolve to `//evil.com` (off-site). Covered by unit tests in `test/utils.test.ts
 ## Abuse protection
 
 - **Rate limiting** — `loginAction`, `adminLoginAction` and `registerAction` are
-  throttled per IP (and per email for member login) via
-  [`lib/rate-limit.ts`](../src/lib/rate-limit.ts). It's an in-process limiter — a
-  real speed bump for single-instance deploys; a multi-instance/serverless setup
-  needs a shared store (Redis).
+  throttled via [`lib/rate-limit.ts`](../src/lib/rate-limit.ts). Login and
+  admin-login are capped **per account (email) first** — a key an attacker can't
+  sidestep by rotating a spoofable IP — plus a coarser per-IP cap. `clientIp`
+  only trusts `X-Forwarded-For` when `TRUSTED_PROXY_HOPS` is set (reading the
+  entry the closest trusted proxy added); otherwise it uses one shared bucket
+  rather than an attacker-controlled key. It's an in-process, memory-bounded
+  limiter — a real speed bump for single-instance deploys; a
+  multi-instance/serverless setup needs a shared store (Redis).
 - **Constant-time credential check** — on an unknown email the login actions
   still run a bcrypt hash, so response latency doesn't reveal whether an account
   exists.
@@ -244,7 +248,8 @@ resolve to `//evil.com` (off-site). Covered by unit tests in `test/utils.test.ts
       in `.env` is for local development only.
 - [ ] Serve over HTTPS so the `secure` cookie flag takes effect.
 - [ ] Back the rate limiter with a shared store (Redis) if running more than one
-      instance.
+      instance, and set `TRUSTED_PROXY_HOPS` to the number of proxies in front of
+      the app so per-IP limits key off the real client IP.
 - [ ] Consider shortening the token lifetime and/or adding refresh; note that
       member/admin status is already re-checked from the DB on every protected
       request, so suspensions/deletions take effect immediately.

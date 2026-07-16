@@ -11,7 +11,12 @@ export default function AdminConsoleError({
     <div className="card-surface p-8 text-center">
       <h2 className="text-lg font-semibold">That action couldn&apos;t be completed</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        {error.message || "Something went wrong. Please try again."}
+        {/* Next redacts server-action error messages in production, so we don't
+            surface `error.message` here (it would be a generic string in prod
+            anyway). Expected, user-recoverable cases are prevented up-front in
+            the UI or returned as form state instead of thrown. */}
+        Something went wrong, or the item changed while you were working. Please
+        refresh and try again.
       </p>
       <button
         onClick={reset}

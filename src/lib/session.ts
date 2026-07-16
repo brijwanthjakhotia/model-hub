@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { ADMIN_ROLES, type AdminRoleValue } from "@/lib/constants";
 
 export const SESSION_COOKIE = "mh_session";
 export const ADMIN_SESSION_COOKIE = "mh_admin";
@@ -11,7 +12,8 @@ export type SessionUser = {
   email: string;
 };
 
-export type AdminRole = "SUPER_ADMIN" | "MODERATOR";
+/** Admin role, single-sourced from `constants` (which ties it to the Prisma enum). */
+export type AdminRole = AdminRoleValue;
 
 /** A signed-in admin. The role is carried in the token so the edge middleware
  *  can gate role-restricted routes without a DB lookup. */
@@ -90,13 +92,14 @@ export async function verifyAdminSession(
     typeof payload.id === "string" &&
     typeof payload.name === "string" &&
     typeof payload.email === "string" &&
-    (payload.role === "SUPER_ADMIN" || payload.role === "MODERATOR")
+    typeof payload.role === "string" &&
+    (ADMIN_ROLES as readonly string[]).includes(payload.role)
   ) {
     return {
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      role: payload.role,
+      role: payload.role as AdminRoleValue,
     };
   }
   return null;

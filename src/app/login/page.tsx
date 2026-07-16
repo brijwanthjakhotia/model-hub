@@ -49,7 +49,7 @@ export default async function LoginPage({
         </div>
 
         {justRegistered && (
-          <div className="mb-4 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success">
+          <div role="status" className="mb-4 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success">
             <p className="font-medium">Account created — pending approval.</p>
             <p className="mt-0.5 text-success/90">
               An admin will review your account shortly. You&apos;ll be able to
@@ -59,7 +59,7 @@ export default async function LoginPage({
         )}
 
         {blocked && (
-          <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
+          <div role="status" className="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
             <p className="font-medium">You&apos;ve been signed out.</p>
             <p className="mt-0.5">
               Your account is no longer active. Sign in again or contact support
