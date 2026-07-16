@@ -14,6 +14,7 @@ export const metadata: Metadata = { title: "Admins" };
 export default async function AdminsPage() {
   const current = await requireSuperAdmin();
   const admins = await prisma.admin.findMany({ orderBy: { createdAt: "asc" } });
+  const superAdminCount = admins.filter((a) => a.role === "SUPER_ADMIN").length;
 
   return (
     <div className="space-y-10">
@@ -46,19 +47,23 @@ export default async function AdminsPage() {
               <Badge tone={admin.role === "SUPER_ADMIN" ? "accent" : "muted"}>
                 {ADMIN_ROLE_META[admin.role]?.label ?? admin.role}
               </Badge>
-              {admin.id !== current.id && (
-                <form action={deleteAdminAction}>
-                  <input type="hidden" name="adminId" value={admin.id} />
-                  <button
-                    type="submit"
-                    title={`Remove ${admin.name}`}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Remove {admin.name}</span>
-                  </button>
-                </form>
-              )}
+              {/* Hide delete where it would fail server-side: you can't remove
+                  yourself, nor the last super admin. (The action still enforces
+                  both for crafted requests.) */}
+              {admin.id !== current.id &&
+                !(admin.role === "SUPER_ADMIN" && superAdminCount <= 1) && (
+                  <form action={deleteAdminAction}>
+                    <input type="hidden" name="adminId" value={admin.id} />
+                    <button
+                      type="submit"
+                      title={`Remove ${admin.name}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Remove {admin.name}</span>
+                    </button>
+                  </form>
+                )}
             </li>
           ))}
         </ul>

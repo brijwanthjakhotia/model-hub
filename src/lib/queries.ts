@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { GENDERS, type SortOption } from "@/lib/constants";
@@ -25,6 +26,21 @@ const cardSelect = {
   ratingCount: true,
   location: true,
   heightCm: true,
+} satisfies Prisma.ModelSelect;
+
+/** Columns the member dashboard renders for a user's own submissions. */
+const submissionRowSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  headshotUrl: true,
+  category: true,
+  location: true,
+  status: true,
+  ratingAvg: true,
+  ratingCount: true,
+  reviewNote: true,
+  createdAt: true,
 } satisfies Prisma.ModelSelect;
 
 /** Columns the admin roster table renders. */
@@ -93,7 +109,10 @@ export async function getFeaturedModels(take = 3) {
   });
 }
 
-export async function getModelBySlug(slug: string) {
+// Wrapped in React `cache()` so the profile page and its `generateMetadata`
+// (which both call this per request) share a single query instead of running
+// the heavy reviews+author include twice.
+export const getModelBySlug = cache(async (slug: string) => {
   // APPROVED-only: a PENDING/REJECTED profile must not surface via its URL
   // (name/bio would otherwise leak into the response even on a 404 page).
   return prisma.model.findFirst({
@@ -106,7 +125,7 @@ export async function getModelBySlug(slug: string) {
       submittedBy: { select: { id: true, name: true } },
     },
   });
-}
+});
 
 export async function getCategoryCounts() {
   const grouped = await prisma.model.groupBy({
@@ -139,6 +158,7 @@ export async function getUserSubmissions(userId: string) {
   return prisma.model.findMany({
     where: { submittedById: userId },
     orderBy: { createdAt: "desc" },
+    select: submissionRowSelect,
   });
 }
 

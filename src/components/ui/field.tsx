@@ -54,7 +54,11 @@ Select.displayName = "Select";
 
 export function FieldError({ messages }: { messages?: string[] }) {
   if (!messages?.length) return null;
-  return <p className="mt-1.5 text-xs font-medium text-danger">{messages[0]}</p>;
+  return (
+    <p role="alert" className="mt-1.5 text-xs font-medium text-danger">
+      {messages[0]}
+    </p>
+  );
 }
 
 export function Field({

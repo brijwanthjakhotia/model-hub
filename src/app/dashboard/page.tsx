@@ -49,7 +49,7 @@ export default async function DashboardPage({
       </div>
 
       {justSubmitted && (
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
+        <div role="status" className="mt-6 flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           <span>
             Your profile was submitted and is now awaiting admin review.

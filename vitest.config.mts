@@ -16,15 +16,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      include: ["src/lib/**/*.ts"],
-      // Excluded: DB/runtime-bound modules that need next/headers or Prisma and
-      // are covered by integration/runtime checks rather than unit tests.
-      exclude: [
-        "src/lib/prisma.ts",
-        "src/lib/auth.ts",
-        "src/lib/queries.ts",
-        "src/lib/rate-limit.ts",
-      ],
+      // Cover the security-critical surface too — lib, server actions and the
+      // middleware — not just the pure helpers, so the number reflects reality.
+      include: ["src/lib/**/*.ts", "src/actions/**/*.ts", "src/middleware.ts"],
+      // Excluded: the Prisma client singleton (trivial) and the read/query layer
+      // (pure DB-query shapes with no branching logic, exercised by runtime
+      // checks rather than unit tests).
+      exclude: ["src/lib/prisma.ts", "src/lib/queries.ts"],
     },
   },
   esbuild: {
@@ -35,6 +33,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // `server-only` has no resolvable module on disk; stub it so server
+      // modules (auth.ts, rate-limit.ts) can be imported directly in tests.
+      "server-only": fileURLToPath(new URL("./test/stubs/server-only.ts", import.meta.url)),
     },
   },
 });

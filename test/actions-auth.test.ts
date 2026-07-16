@@ -4,21 +4,25 @@ import bcrypt from "bcryptjs";
 /* --- mocks for the action's collaborators ------------------------------- */
 // vi.mock is hoisted above imports, so shared mock state must be created with
 // vi.hoisted (which also runs first) to be referencable in the factories.
-const { redirect, createSession, rateLimit, prisma } = vi.hoisted(() => ({
+const { redirect, createSession, createAdminSession, rateLimit, prisma } = vi.hoisted(() => ({
   // redirect() throws in Next; model that so we can assert the target.
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
   createSession: vi.fn(),
+  createAdminSession: vi.fn(),
   rateLimit: vi.fn(() => ({ ok: true, retryAfterSec: 0 })),
-  prisma: { user: { findUnique: vi.fn(), create: vi.fn() } },
+  prisma: {
+    user: { findUnique: vi.fn(), create: vi.fn() },
+    admin: { findUnique: vi.fn() },
+  },
 }));
 
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("@/lib/auth", () => ({
   createSession,
   destroySession: vi.fn(),
-  createAdminSession: vi.fn(),
+  createAdminSession,
   destroyAdminSession: vi.fn(),
 }));
 vi.mock("@/lib/rate-limit", () => ({
@@ -28,7 +32,7 @@ vi.mock("@/lib/rate-limit", () => ({
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
 import { Prisma } from "@prisma/client";
-import { loginAction, registerAction } from "@/actions/auth";
+import { adminLoginAction, loginAction, registerAction } from "@/actions/auth";
 
 const form = (o: Record<string, string>) => {
   const fd = new FormData();
@@ -137,5 +141,37 @@ describe("loginAction", () => {
     const state = await loginAction({}, form({ email: "user@example.com", password }));
     expect(state.error).toMatch(/too many/i);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("adminLoginAction", () => {
+  const password = "superadmin1";
+
+  it("signs in an admin against the Admin table and redirects to /admin", async () => {
+    prisma.admin.findUnique.mockResolvedValueOnce({
+      id: "a1",
+      name: "Owner",
+      email: "super@example.com",
+      passwordHash: await bcrypt.hash(password, 10),
+      role: "SUPER_ADMIN",
+    });
+    await expect(
+      adminLoginAction({}, form({ email: "super@example.com", password })),
+    ).rejects.toThrow("REDIRECT:/admin");
+    expect(createAdminSession).toHaveBeenCalledOnce();
+  });
+
+  it("returns a generic error for an unknown admin email (no enumeration)", async () => {
+    prisma.admin.findUnique.mockResolvedValueOnce(null);
+    const state = await adminLoginAction({}, form({ email: "nobody@example.com", password }));
+    expect(state.error).toBe("Invalid email or password.");
+    expect(createAdminSession).not.toHaveBeenCalled();
+  });
+
+  it("rate-limits repeated admin attempts", async () => {
+    rateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 120 });
+    const state = await adminLoginAction({}, form({ email: "super@example.com", password }));
+    expect(state.error).toMatch(/too many/i);
+    expect(prisma.admin.findUnique).not.toHaveBeenCalled();
   });
 });

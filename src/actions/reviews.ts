@@ -12,7 +12,16 @@ export type ReviewState = {
   success?: boolean;
 };
 
-/** Recompute the denormalised rating cache for a model, inside a transaction. */
+/**
+ * Recompute the denormalised rating cache for a model, inside a transaction.
+ *
+ * INVARIANT: any path that adds, edits or removes a Review must call this for
+ * the affected model in the same transaction. Today the only writer is
+ * `addReviewAction` (upsert). If a review-delete or user-erasure feature is
+ * added, note that deleting a User cascade-deletes their reviews at the DB
+ * level and would bypass this — such a path must recompute the affected models
+ * (or the cache will drift). Model deletion is exempt (the row is gone).
+ */
 async function recomputeRating(tx: Prisma.TransactionClient, modelId: string) {
   const agg = await tx.review.aggregate({
     where: { modelId },

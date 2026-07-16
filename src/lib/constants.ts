@@ -1,3 +1,8 @@
+// Type-only imports (erased at build — safe in edge/client bundles). `satisfies`
+// below ties each hand-written list to the Prisma-generated enum, so adding a
+// value to schema.prisma without updating these arrays is a compile error.
+import type { AdminRole, Gender, ModelStatus, UserStatus } from "@prisma/client";
+
 export const CATEGORIES = [
   "Runway",
   "Commercial",
@@ -13,7 +18,7 @@ export const GENDERS = [
   { value: "FEMALE", label: "Female" },
   { value: "MALE", label: "Male" },
   { value: "NONBINARY", label: "Non-binary" },
-] as const;
+] as const satisfies readonly { value: Gender; label: string }[];
 
 export const EXPERIENCE_LEVELS = [
   "New Face",
@@ -50,7 +55,7 @@ export const SORT_OPTIONS = [
 
 export type SortOption = (typeof SORT_OPTIONS)[number]["value"];
 
-export const MODEL_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
+export const MODEL_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const satisfies readonly ModelStatus[];
 export type ModelStatusValue = (typeof MODEL_STATUSES)[number];
 
 export const STATUS_META: Record<
@@ -63,7 +68,7 @@ export const STATUS_META: Record<
 };
 
 /** Admin roles — single source for the enum, Zod schema and display labels. */
-export const ADMIN_ROLES = ["SUPER_ADMIN", "MODERATOR"] as const;
+export const ADMIN_ROLES = ["SUPER_ADMIN", "MODERATOR"] as const satisfies readonly AdminRole[];
 export type AdminRoleValue = (typeof ADMIN_ROLES)[number];
 
 export const ADMIN_ROLE_META: Record<AdminRoleValue, { label: string }> = {
@@ -78,7 +83,7 @@ export const USER_STATUSES = [
   "INACTIVE",
   "SUSPENDED_FRAUD",
   "SUSPENDED",
-] as const;
+] as const satisfies readonly UserStatus[];
 
 export type UserStatusValue = (typeof USER_STATUSES)[number];
 

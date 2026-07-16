@@ -113,12 +113,20 @@ export async function decideModelAction(formData: FormData) {
 export async function toggleFeaturedAction(formData: FormData) {
   await requireAdmin();
   const modelId = String(formData.get("modelId") ?? "");
-  const model = await prisma.model.findUnique({ where: { id: modelId } });
-  if (!model) throw new Error("Model not found");
+  if (!modelId) throw new Error("Missing model id");
 
-  await prisma.model.update({
-    where: { id: modelId },
-    data: { featured: !model.featured },
+  // Read + flip in one transaction so concurrent toggles can't clobber each
+  // other (read-modify-write TOCTOU on the boolean).
+  await prisma.$transaction(async (tx) => {
+    const model = await tx.model.findUnique({
+      where: { id: modelId },
+      select: { featured: true },
+    });
+    if (!model) throw new Error("That profile no longer exists.");
+    await tx.model.update({
+      where: { id: modelId },
+      data: { featured: !model.featured },
+    });
   });
 
   revalidatePath("/admin/models");
