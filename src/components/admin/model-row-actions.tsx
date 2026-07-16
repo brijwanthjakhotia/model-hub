@@ -33,6 +33,9 @@ export function ModelRowActions({
             )}
           >
             <Star className={cn("h-4 w-4", featured && "fill-current")} />
+            <span className="sr-only">
+              {featured ? `Remove ${name} from featured` : `Mark ${name} as featured`}
+            </span>
           </button>
         </form>
       )}
@@ -62,6 +65,7 @@ export function ModelRowActions({
           className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
         >
           <Trash2 className="h-4 w-4" />
+          <span className="sr-only">Delete {name}</span>
         </button>
       )}
     </div>
