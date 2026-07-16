@@ -4,6 +4,7 @@ import {
   CATEGORIES,
   EXPERIENCE_LEVELS,
   EYE_COLORS,
+  GENDER_VALUES,
   HAIR_COLORS,
   USER_STATUSES,
 } from "@/lib/constants";
@@ -56,7 +57,7 @@ export const modelSchema = z.object({
   category: z.enum(CATEGORIES, {
     errorMap: () => ({ message: "Choose a category" }),
   }),
-  gender: z.enum(["FEMALE", "MALE", "NONBINARY"]),
+  gender: z.enum(GENDER_VALUES),
   location: z.string().trim().min(2, "Location is required").max(80),
   experience: z.enum(EXPERIENCE_LEVELS),
   bio: z
@@ -81,7 +82,7 @@ export const modelSchema = z.object({
   instagram: z.string().trim().max(60).optional().or(z.literal("")),
   agencyEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
   headshotUrl: z.string().trim().url("Must be a valid URL").optional().or(z.literal("")),
-  gallery: z.string().optional(), // newline or comma separated URLs
+  gallery: z.string().max(4000).optional(), // newline or comma separated URLs
 });
 
 export const reviewSchema = z.object({

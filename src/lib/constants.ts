@@ -1,6 +1,8 @@
-// Type-only imports (erased at build — safe in edge/client bundles). `satisfies`
-// below ties each hand-written list to the Prisma-generated enum, so adding a
-// value to schema.prisma without updating these arrays is a compile error.
+// Type-only imports (erased at build — safe in edge/client bundles). Two guards
+// keep these lists in sync with the Prisma-generated enums: `satisfies readonly
+// <Enum>[]` on each array rejects a typo'd or removed member, and keying every
+// `*_META` record by the enum type forces a metadata entry for each member — so
+// adding a value to schema.prisma is a compile error until it's handled here.
 import type { AdminRole, Gender, ModelStatus, UserStatus } from "@prisma/client";
 
 export const CATEGORIES = [
@@ -14,11 +16,19 @@ export const CATEGORIES = [
   "Petite",
 ] as const;
 
-export const GENDERS = [
-  { value: "FEMALE", label: "Female" },
-  { value: "MALE", label: "Male" },
-  { value: "NONBINARY", label: "Non-binary" },
-] as const satisfies readonly { value: Gender; label: string }[];
+export const GENDER_VALUES = ["FEMALE", "MALE", "NONBINARY"] as const satisfies readonly Gender[];
+
+const GENDER_LABELS: Record<Gender, string> = {
+  FEMALE: "Female",
+  MALE: "Male",
+  NONBINARY: "Non-binary",
+};
+
+/** `{ value, label }` options for selects/filters, derived from GENDER_VALUES. */
+export const GENDERS = GENDER_VALUES.map((value) => ({
+  value,
+  label: GENDER_LABELS[value],
+}));
 
 export const EXPERIENCE_LEVELS = [
   "New Face",
@@ -59,7 +69,7 @@ export const MODEL_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const satis
 export type ModelStatusValue = (typeof MODEL_STATUSES)[number];
 
 export const STATUS_META: Record<
-  ModelStatusValue,
+  ModelStatus,
   { label: string; tone: "warning" | "success" | "danger" }
 > = {
   PENDING: { label: "Pending review", tone: "warning" },
@@ -71,7 +81,7 @@ export const STATUS_META: Record<
 export const ADMIN_ROLES = ["SUPER_ADMIN", "MODERATOR"] as const satisfies readonly AdminRole[];
 export type AdminRoleValue = (typeof ADMIN_ROLES)[number];
 
-export const ADMIN_ROLE_META: Record<AdminRoleValue, { label: string }> = {
+export const ADMIN_ROLE_META: Record<AdminRole, { label: string }> = {
   SUPER_ADMIN: { label: "Super admin" },
   MODERATOR: { label: "Moderator" },
 };
@@ -88,7 +98,7 @@ export const USER_STATUSES = [
 export type UserStatusValue = (typeof USER_STATUSES)[number];
 
 export const USER_STATUS_META: Record<
-  UserStatusValue,
+  UserStatus,
   { label: string; tone: "warning" | "success" | "muted" | "danger" }
 > = {
   PENDING: { label: "Pending", tone: "warning" },

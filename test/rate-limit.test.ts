@@ -1,10 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+// Mutable headers so individual tests can set X-Forwarded-For.
+const { hdrs } = vi.hoisted(() => ({ hdrs: { value: new Headers() } }));
+vi.mock("next/headers", () => ({ headers: async () => hdrs.value }));
 
 import { rateLimit, clientIp, __resetRateLimit } from "@/lib/rate-limit";
 
-beforeEach(() => __resetRateLimit());
+beforeEach(() => {
+  __resetRateLimit();
+  hdrs.value = new Headers();
+});
 
 describe("rateLimit", () => {
   it("allows up to `limit` calls, then blocks", () => {
@@ -42,8 +47,24 @@ describe("rateLimit", () => {
 });
 
 describe("clientIp", () => {
-  it("does not trust client headers without a configured proxy (shared bucket)", async () => {
-    // TRUSTED_PROXY_HOPS defaults to 0, so a spoofable X-Forwarded-For is ignored.
-    expect(await clientIp()).toBe("shared");
+  it("returns null without a configured proxy (ignores a spoofable XFF)", async () => {
+    // TRUSTED_PROXY_HOPS defaults to 0 → header untrusted → null (callers then
+    // skip the per-IP cap rather than collapsing everyone into one bucket).
+    hdrs.value = new Headers({ "x-forwarded-for": "1.2.3.4" });
+    expect(await clientIp()).toBeNull();
+  });
+
+  it("reads the Nth-from-right XFF entry when a trusted proxy is configured", async () => {
+    vi.stubEnv("TRUSTED_PROXY_HOPS", "1");
+    vi.resetModules();
+    hdrs.value = new Headers({ "x-forwarded-for": "9.9.9.9, 10.0.0.1" });
+    const fresh = await import("@/lib/rate-limit");
+    // hops=1 → the entry our closest proxy appended (rightmost) = real client.
+    expect(await fresh.clientIp()).toBe("10.0.0.1");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 });

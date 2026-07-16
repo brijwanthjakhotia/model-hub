@@ -36,7 +36,7 @@ redirect to.
 
 | Action | Signature | Auth | Validation | Effect |
 | --- | --- | --- | --- | --- |
-| `createModelAction` | `(prev, formData) => ModelFormState` | **active member** (`requireUser`) | `modelSchema` | Builds a unique slug, parses gallery URLs, creates a `PENDING` profile owned by the user; revalidates `/dashboard` & `/admin/approvals`; redirects to `/dashboard?submitted=1`. |
+| `createModelAction` | `(prev, formData) => ModelFormState` | **active member** (`requireUser`, rate-limited per user) | `modelSchema` | Builds a unique slug, parses gallery URLs, creates a `PENDING` profile owned by the user; revalidates `/dashboard` & `/admin/approvals`; redirects to `/dashboard?submitted=1`. |
 | `decideModelAction` | `(formData) => void` | **admin** | `reviewDecisionSchema` | Sets `status` to `APPROVED`/`REJECTED` with an optional note, stamps `reviewedById`/`reviewedAt`; revalidates admin pages & `/models`. |
 | `toggleFeaturedAction` | `(formData) => void` | **admin** | — | Flips `featured`; revalidates `/`, `/models`, `/admin/models`. |
 | `deleteModelAction` | `(formData) => void` | **admin** | — | Deletes the profile (reviews cascade); revalidates `/models` & `/admin/models`. |
@@ -45,7 +45,7 @@ redirect to.
 
 | Action | Signature | Auth | Validation | Effect |
 | --- | --- | --- | --- | --- |
-| `addReviewAction` | `(prev, formData) => ReviewState` | **active member** (`requireUser`) | `reviewSchema` | Auth-gates before revealing the target; enforces "model approved", "not your own profile", one-per-user; **upsert + rating-cache recompute run in one `$transaction`** so they can't diverge. Redirects anonymous users to login and blocks non-`ACTIVE` members. |
+| `addReviewAction` | `(prev, formData) => ReviewState` | **active member** (`requireUser`, rate-limited per user) | `reviewSchema` | Auth-gates before revealing the target; enforces "model approved", "not your own profile", one-per-user; **upsert + rating-cache recompute run in one `$transaction`** so they can't diverge. Redirects anonymous users to login and blocks non-`ACTIVE` members. |
 
 ### Progressive enhancement
 

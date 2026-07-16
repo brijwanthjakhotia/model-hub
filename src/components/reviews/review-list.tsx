@@ -28,7 +28,11 @@ export function ReviewList({ reviews }: { reviews: ReviewItem[] }) {
                 </p>
               </div>
             </div>
-            <RatingStars value={review.rating} size="sm" />
+            <RatingStars
+              value={review.rating}
+              size="sm"
+              label={`Rated ${review.rating} out of 5`}
+            />
           </div>
           {review.title && (
             <p className="mt-3 font-medium">{review.title}</p>

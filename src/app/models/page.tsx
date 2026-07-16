@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
 import { getApprovedModels } from "@/lib/queries";
 import { pluralize } from "@/lib/utils";
-import type { SortOption } from "@/lib/constants";
+import { SORT_OPTIONS, type SortOption } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Talent Gallery",
@@ -26,12 +26,16 @@ export default async function ModelsPage({
   searchParams: Promise<SP>;
 }) {
   const sp = await searchParams;
+  const rawSort = first(sp.sort);
+  const sort: SortOption = SORT_OPTIONS.some((o) => o.value === rawSort)
+    ? (rawSort as SortOption)
+    : "featured";
   const filters = {
     q: first(sp.q),
     category: first(sp.category),
     gender: first(sp.gender),
     experience: first(sp.experience),
-    sort: (first(sp.sort) as SortOption) ?? "featured",
+    sort,
   };
 
   const models = await getApprovedModels(filters);

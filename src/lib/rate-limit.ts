@@ -57,32 +57,32 @@ export function __resetRateLimit() {
 }
 
 /**
- * Best-effort client IP for rate-limit keys.
+ * Trustworthy client IP for rate-limit keys, or `null` if we can't determine
+ * one we trust.
  *
  * `X-Forwarded-For` is client-spoofable unless the app sits behind a proxy that
  * appends it. Set `TRUSTED_PROXY_HOPS` to the number of proxies in front of the
  * app and we read the entry the closest trusted proxy added (Nth from the
- * right). With no trusted proxy configured we do NOT trust the header and return
- * a constant: the per-account rate-limit keys (which include the email) still
- * bound brute force regardless of IP, and the coarse per-IP cap merely collapses
- * to one shared bucket — which an attacker can't rotate around.
+ * right). With no trusted proxy configured we return `null` — callers then skip
+ * the per-IP cap entirely rather than collapsing every client into one shared
+ * bucket (which would let an attacker trip a global limit and lock everyone
+ * out). The per-account keys, which include the email, remain the real
+ * brute-force bound regardless of IP.
  */
 const TRUSTED_PROXY_HOPS = Math.max(
   0,
   Math.trunc(Number(process.env.TRUSTED_PROXY_HOPS)) || 0,
 );
 
-export async function clientIp(): Promise<string> {
+export async function clientIp(): Promise<string | null> {
+  if (TRUSTED_PROXY_HOPS <= 0) return null;
   const h = await headers();
-  if (TRUSTED_PROXY_HOPS > 0) {
-    const xff = h.get("x-forwarded-for");
-    if (xff) {
-      const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
-      const idx = parts.length - TRUSTED_PROXY_HOPS;
-      if (idx >= 0 && parts[idx]) return parts[idx];
-    }
-    const real = h.get("x-real-ip");
-    if (real) return real.trim();
+  const xff = h.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    const idx = parts.length - TRUSTED_PROXY_HOPS;
+    if (idx >= 0 && parts[idx]) return parts[idx];
   }
-  return "shared";
+  const real = h.get("x-real-ip");
+  return real ? real.trim() : null;
 }

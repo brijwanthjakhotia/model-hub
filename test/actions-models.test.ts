@@ -61,6 +61,7 @@ describe("createModelAction", () => {
     await expect(createModelAction({}, form(validModel))).rejects.toThrow(
       "REDIRECT:/dashboard?submitted=1",
     );
+    expect(requireUser).toHaveBeenCalledOnce(); // authz enforced
     const data = prisma.model.create.mock.calls[0][0].data;
     expect(data.status).toBe("PENDING");
     expect(data.submittedById).toBe("u1");
@@ -86,7 +87,9 @@ describe("createModelAction", () => {
 
 describe("decideModelAction", () => {
   it("applies an APPROVED decision with reviewer metadata", async () => {
+    prisma.model.update.mockResolvedValueOnce({ slug: "casey-newface" });
     await decideModelAction(form({ modelId: "m1", decision: "APPROVED", note: "" }));
+    expect(requireAdmin).toHaveBeenCalledOnce(); // authz enforced
     const arg = prisma.model.update.mock.calls[0][0];
     expect(arg.where).toEqual({ id: "m1" });
     expect(arg.data.status).toBe("APPROVED");
@@ -109,7 +112,7 @@ describe("decideModelAction", () => {
 
 describe("toggleFeaturedAction", () => {
   it("flips featured atomically inside a transaction", async () => {
-    tx.model.findUnique.mockResolvedValueOnce({ featured: false });
+    tx.model.findUnique.mockResolvedValueOnce({ featured: false, slug: "casey-newface" });
     await toggleFeaturedAction(form({ modelId: "m1" }));
     expect(tx.model.update).toHaveBeenCalledWith({
       where: { id: "m1" },

@@ -22,7 +22,8 @@ export function FormMessage({
   if (!children) return null;
   return (
     <p
-      role="alert"
+      // Errors interrupt (assertive); a success confirmation is polite.
+      role={tone === "success" ? "status" : "alert"}
       className={cn(
         "rounded-lg px-3 py-2 text-sm font-medium",
         tones[tone],

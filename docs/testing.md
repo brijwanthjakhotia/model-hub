@@ -17,11 +17,14 @@ down with fast, deterministic tests.
 
 Configuration is in [`vitest.config.mts`](../vitest.config.mts):
 
-- Default environment is **node**; the `@` alias maps to `src/`.
+- Default environment is **node**; the `@` alias maps to `src/`, and
+  `server-only` is aliased to a stub so server modules import cleanly.
 - `AUTH_SECRET` is injected via `test.env` so session tests are reproducible.
 - `esbuild.jsx: "automatic"` lets `.tsx` tests skip an explicit React import.
-- Coverage is scoped to `src/lib/**` (excluding the `server-only`
-  `prisma`/`auth`/`queries` modules, which are integration concerns).
+- Coverage spans `src/lib/**`, `src/actions/**` and `src/middleware.ts`, so the
+  number reflects the security-critical surface — not just pure helpers. Only
+  the Prisma client singleton (`lib/prisma.ts`) and the read/query layer
+  (`lib/queries.ts`, pure query shapes) are excluded.
 - [`test/setup.ts`](../test/setup.ts) registers the jest-dom matchers.
 
 ## Commands
@@ -37,9 +40,19 @@ npm run test:coverage # run with a coverage report (text + HTML in coverage/)
 ```
 test/
 ├── setup.ts                       # jest-dom matcher registration
+├── stubs/server-only.ts           # no-op stub for the `server-only` package
 ├── utils.test.ts                  # pure helpers
 ├── validations.test.ts            # Zod schemas
 ├── session.test.ts                # JWT sign/verify (real jose crypto)
+├── auth-messages.test.ts          # status → login-message mapping
+├── rate-limit.test.ts             # window/eviction logic + clientIp trust
+├── auth-guards.test.ts            # requireUser/requireAdmin/requireSuperAdmin
+├── middleware.test.ts             # route gating (real tokens)
+├── actions-auth.test.ts           # register / login / admin-login
+├── actions-admins.test.ts         # create / delete admin
+├── actions-members.test.ts        # member status changes
+├── actions-models.test.ts         # create / decide / feature / delete
+├── actions-reviews.test.ts        # review upsert + rating recompute
 └── components/
     └── ui-components.test.tsx      # RatingStars, StatusBadge, Badge (jsdom)
 ```

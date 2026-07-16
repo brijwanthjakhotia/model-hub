@@ -43,6 +43,7 @@ describe("addReviewAction", () => {
     tx.review.aggregate.mockResolvedValueOnce({ _avg: { rating: 5 }, _count: { _all: 1 } });
     const state = await addReviewAction({}, form(validReview));
     expect(state.success).toBe(true);
+    expect(requireUser).toHaveBeenCalledOnce(); // authz enforced
     expect(tx.review.upsert).toHaveBeenCalledOnce();
     expect(tx.model.update).toHaveBeenCalledWith({
       where: { id: "m1" },

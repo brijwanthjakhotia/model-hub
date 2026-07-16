@@ -28,6 +28,7 @@ afterEach(() => vi.clearAllMocks());
 describe("updateMemberStatusAction", () => {
   it("updates a member's status", async () => {
     await updateMemberStatusAction(form({ userId: "u1", status: "ACTIVE" }));
+    expect(requireAdmin).toHaveBeenCalledOnce(); // authz enforced
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "u1" },
       data: { status: "ACTIVE" },

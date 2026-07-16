@@ -13,7 +13,12 @@ export const metadata: Metadata = { title: "Admins" };
 
 export default async function AdminsPage() {
   const current = await requireSuperAdmin();
-  const admins = await prisma.admin.findMany({ orderBy: { createdAt: "asc" } });
+  const admins = await prisma.admin.findMany({
+    orderBy: { createdAt: "asc" },
+    // Never pull passwordHash into the RSC (defense-in-depth against it ever
+    // being passed to a client component).
+    select: { id: true, name: true, email: true, role: true, avatarUrl: true, createdAt: true },
+  });
   const superAdminCount = admins.filter((a) => a.role === "SUPER_ADMIN").length;
 
   return (
