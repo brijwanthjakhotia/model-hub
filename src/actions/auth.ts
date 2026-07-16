@@ -48,9 +48,12 @@ export async function registerAction(
   if (!regByEmail.ok) {
     return { error: tooManyMsg(regByEmail.retryAfterSec), values: { name: raw.name, email: raw.email } };
   }
-  const regByIp = rateLimit(`register:ip:${await clientIp()}`, 100, 60 * 60 * 1000);
-  if (!regByIp.ok) {
-    return { error: tooManyMsg(regByIp.retryAfterSec), values: { name: raw.name, email: raw.email } };
+  const ip = await clientIp();
+  if (ip) {
+    const regByIp = rateLimit(`register:ip:${ip}`, 100, 60 * 60 * 1000);
+    if (!regByIp.ok) {
+      return { error: tooManyMsg(regByIp.retryAfterSec), values: { name: raw.name, email: raw.email } };
+    }
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
@@ -91,14 +94,19 @@ export async function loginAction(
   }
 
   // Per-account cap first: keyed on the email, so it can't be sidestepped by
-  // rotating a (spoofable) IP. Then a coarser per-IP cap for spray attacks.
+  // rotating a (spoofable) IP. Then a coarser per-IP cap for spray attacks —
+  // only when we have a trustworthy IP, so it can't be turned into a global
+  // lockout.
   const loginByAcct = rateLimit(`login:acct:${parsed.data.email}`, 10, 15 * 60 * 1000);
   if (!loginByAcct.ok) {
     return { error: tooManyMsg(loginByAcct.retryAfterSec), values: { email: raw.email } };
   }
-  const loginByIp = rateLimit(`login:ip:${await clientIp()}`, 50, 15 * 60 * 1000);
-  if (!loginByIp.ok) {
-    return { error: tooManyMsg(loginByIp.retryAfterSec), values: { email: raw.email } };
+  const ip = await clientIp();
+  if (ip) {
+    const loginByIp = rateLimit(`login:ip:${ip}`, 50, 15 * 60 * 1000);
+    if (!loginByIp.ok) {
+      return { error: tooManyMsg(loginByIp.retryAfterSec), values: { email: raw.email } };
+    }
   }
 
   const user = await prisma.user.findUnique({
@@ -161,9 +169,12 @@ export async function adminLoginAction(
   if (!adminByAcct.ok) {
     return { error: tooManyMsg(adminByAcct.retryAfterSec), values: { email: raw.email } };
   }
-  const adminByIp = rateLimit(`admin-login:ip:${await clientIp()}`, 30, 15 * 60 * 1000);
-  if (!adminByIp.ok) {
-    return { error: tooManyMsg(adminByIp.retryAfterSec), values: { email: raw.email } };
+  const ip = await clientIp();
+  if (ip) {
+    const adminByIp = rateLimit(`admin-login:ip:${ip}`, 30, 15 * 60 * 1000);
+    if (!adminByIp.ok) {
+      return { error: tooManyMsg(adminByIp.retryAfterSec), values: { email: raw.email } };
+    }
   }
 
   const admin = await prisma.admin.findUnique({

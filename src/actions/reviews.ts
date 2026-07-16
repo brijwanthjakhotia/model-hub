@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { reviewSchema } from "@/lib/validations";
 
 export type ReviewState = {
@@ -68,6 +69,11 @@ export async function addReviewAction(
   }
   if (model.submittedById === user.id) {
     return { error: "You cannot review a profile you submitted." };
+  }
+
+  // Throttle per member (the upsert already bounds one row per model per user).
+  if (!rateLimit(`review:${user.id}`, 20, 60 * 60 * 1000).ok) {
+    return { error: "You're posting reviews too quickly. Please try again later." };
   }
 
   // Write the review and recompute the cached rating atomically, so the two can

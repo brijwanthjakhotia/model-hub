@@ -47,6 +47,7 @@ describe("createAdminAction", () => {
       {},
       form({ name: "New Mod", email: "new@x.com", password: "password123", role: "MODERATOR" }),
     );
+    expect(requireSuperAdmin).toHaveBeenCalledOnce(); // authz enforced
     expect(prisma.admin.create).toHaveBeenCalledOnce();
     expect(state.success).toMatch(/created/i);
     expect(state.error).toBeUndefined();
@@ -94,6 +95,7 @@ describe("deleteAdminAction", () => {
       where: { reviewedById: "other" },
       data: { reviewedById: null, reviewedAt: null, reviewNote: null },
     });
+    expect(requireSuperAdmin).toHaveBeenCalledOnce(); // authz enforced
     expect(tx.admin.delete).toHaveBeenCalledWith({ where: { id: "other" } });
     expect(tx.admin.count).not.toHaveBeenCalled(); // no count for a moderator
   });

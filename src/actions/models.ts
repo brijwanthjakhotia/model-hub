@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser, requireAdmin } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { modelSchema, reviewDecisionSchema } from "@/lib/validations";
 import { parseGalleryUrls, slugify } from "@/lib/utils";
 
@@ -30,6 +31,14 @@ export async function createModelAction(
   if (!parsed.success) {
     return {
       fieldErrors: parsed.error.flatten().fieldErrors,
+      values: raw,
+    };
+  }
+
+  // Throttle submissions per member so one account can't flood the queue.
+  if (!rateLimit(`submit:${user.id}`, 10, 60 * 60 * 1000).ok) {
+    return {
+      error: "You're submitting profiles too quickly. Please try again later.",
       values: raw,
     };
   }
@@ -90,8 +99,9 @@ export async function decideModelAction(formData: FormData) {
 
   const { modelId, decision, note } = parsed.data;
 
+  let slug: string;
   try {
-    await prisma.model.update({
+    const updated = await prisma.model.update({
       where: { id: modelId },
       data: {
         status: decision,
@@ -99,7 +109,9 @@ export async function decideModelAction(formData: FormData) {
         reviewedById: admin.id,
         reviewedAt: new Date(),
       },
+      select: { slug: true },
     });
+    slug = updated.slug;
   } catch (e) {
     if (isNotFound(e)) throw new Error("That profile no longer exists.");
     throw e;
@@ -108,6 +120,8 @@ export async function decideModelAction(formData: FormData) {
   revalidatePath("/admin/approvals");
   revalidatePath("/admin");
   revalidatePath("/models");
+  revalidatePath("/");
+  revalidatePath(`/models/${slug}`);
 }
 
 export async function toggleFeaturedAction(formData: FormData) {
@@ -117,21 +131,23 @@ export async function toggleFeaturedAction(formData: FormData) {
 
   // Read + flip in one transaction so concurrent toggles can't clobber each
   // other (read-modify-write TOCTOU on the boolean).
-  await prisma.$transaction(async (tx) => {
+  const slug = await prisma.$transaction(async (tx) => {
     const model = await tx.model.findUnique({
       where: { id: modelId },
-      select: { featured: true },
+      select: { featured: true, slug: true },
     });
     if (!model) throw new Error("That profile no longer exists.");
     await tx.model.update({
       where: { id: modelId },
       data: { featured: !model.featured },
     });
+    return model.slug;
   });
 
   revalidatePath("/admin/models");
   revalidatePath("/");
   revalidatePath("/models");
+  revalidatePath(`/models/${slug}`);
 }
 
 export async function deleteModelAction(formData: FormData) {
@@ -148,4 +164,5 @@ export async function deleteModelAction(formData: FormData) {
 
   revalidatePath("/admin/models");
   revalidatePath("/models");
+  revalidatePath("/"); // a deleted featured profile is on the landing hero
 }
