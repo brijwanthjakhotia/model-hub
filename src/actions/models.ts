@@ -134,12 +134,18 @@ export async function toggleFeaturedAction(formData: FormData) {
   const slug = await prisma.$transaction(async (tx) => {
     const model = await tx.model.findUnique({
       where: { id: modelId },
-      select: { featured: true, slug: true },
+      select: { featured: true, slug: true, status: true },
     });
     if (!model) throw new Error("That profile no longer exists.");
+    const next = !model.featured;
+    // Only APPROVED profiles are public, so only they can be featured (a crafted
+    // request can't surface a PENDING/REJECTED profile on the landing page).
+    if (next && model.status !== "APPROVED") {
+      throw new Error("Only approved profiles can be featured.");
+    }
     await tx.model.update({
       where: { id: modelId },
-      data: { featured: !model.featured },
+      data: { featured: next },
     });
     return model.slug;
   });

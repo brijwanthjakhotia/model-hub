@@ -96,10 +96,17 @@ export const reviewSchema = z.object({
     .max(1000, "Review is too long"),
 });
 
-export const reviewDecisionSchema = z.object({
-  modelId: z.string().min(1),
-  decision: z.enum(["APPROVED", "REJECTED"]),
-  note: z.string().trim().max(500).optional().or(z.literal("")),
-});
+export const reviewDecisionSchema = z
+  .object({
+    modelId: z.string().min(1),
+    decision: z.enum(["APPROVED", "REJECTED"]),
+    note: z.string().trim().max(500).optional().or(z.literal("")),
+  })
+  // A rejection must explain itself — the note is shown to the submitter. The
+  // reject form marks it required; enforce it server-side too.
+  .refine((d) => d.decision !== "REJECTED" || !!d.note, {
+    message: "A note is required when rejecting",
+    path: ["note"],
+  });
 
 export type ModelInput = z.infer<typeof modelSchema>;

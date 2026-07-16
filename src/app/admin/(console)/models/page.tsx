@@ -5,10 +5,13 @@ import { ModelImage } from "@/components/ui/model-image";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ModelRowActions } from "@/components/admin/model-row-actions";
 import { formatDate } from "@/lib/utils";
+import { requireAdmin } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Manage talent" };
 
 export default async function AdminModelsPage() {
+  // Page-level re-check (the layout guard doesn't re-run on soft navigations).
+  await requireAdmin();
   const models = await getAllModelsForAdmin();
 
   return (

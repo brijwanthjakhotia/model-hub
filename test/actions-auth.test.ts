@@ -92,6 +92,18 @@ describe("registerAction", () => {
     expect(state.fieldErrors).toBeTruthy();
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
+
+  it("rate-limits repeated registrations (per email)", async () => {
+    rateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 3600 });
+    const state = await registerAction({}, form({
+      name: "New Person",
+      email: "new@example.com",
+      password: "password123",
+      confirmPassword: "password123",
+    }));
+    expect(state.error).toMatch(/too many/i);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("loginAction", () => {
@@ -138,6 +150,15 @@ describe("loginAction", () => {
 
   it("rate-limits repeated attempts", async () => {
     rateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 60 });
+    const state = await loginAction({}, form({ email: "user@example.com", password }));
+    expect(state.error).toMatch(/too many/i);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("applies the per-IP cap after the per-account cap passes", async () => {
+    rateLimit
+      .mockReturnValueOnce({ ok: true, retryAfterSec: 0 }) // per-account passes
+      .mockReturnValueOnce({ ok: false, retryAfterSec: 60 }); // per-IP trips
     const state = await loginAction({}, form({ email: "user@example.com", password }));
     expect(state.error).toMatch(/too many/i);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();

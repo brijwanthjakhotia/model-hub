@@ -66,21 +66,13 @@ docblock at the very top of the file:
 
 ## Coverage
 
-Current suite: **145 tests**. Coverage is measured across the security-critical
+Current suite: **150+ tests**. Coverage is measured across the security-critical
 surface — the `lib` layer, **every server action**, and the **middleware** — not
-just the pure helpers, so the headline number reflects reality (~**94% lines**,
-~86% branch). `session.ts`, `constants.ts`, `utils.ts`, `validations.ts`,
-`auth-messages.ts` and `middleware.ts` sit at 100%; the remainder is cookie
-setters and the header-parsing half of `rate-limit.ts`.
-
-```
-File            | % Stmts | % Branch | % Funcs | % Lines
-----------------|---------|----------|---------|--------
-All files       |   94.46 |   85.54  |   96.36 |   94.46
- src/middleware |     100 |     100  |     100 |     100
- src/actions/*  |   ~90   |   ~72    |   ~90   |   ~90
- src/lib/*      |   ~94   |   ~98    |   ~88   |   ~94
-```
+just the pure helpers, so the headline number reflects reality (roughly **95%
+lines / ~86% branch**). `session.ts`, `constants.ts`, `utils.ts`,
+`validations.ts`, `auth-messages.ts` and `middleware.ts` sit at 100%; the
+remainder is cookie setters and the header-parsing half of `rate-limit.ts`.
+Run `npm run test:coverage` for the exact, current per-file table.
 
 ### What's covered
 

@@ -1,12 +1,13 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { requireUser, tx, prisma } = vi.hoisted(() => {
+const { requireUser, rateLimit, tx, prisma } = vi.hoisted(() => {
   const tx = {
     review: { upsert: vi.fn(), aggregate: vi.fn() },
     model: { update: vi.fn() },
   };
   return {
     requireUser: vi.fn(async () => ({ id: "u1", name: "J", email: "j@x.com" })),
+    rateLimit: vi.fn(() => ({ ok: true, retryAfterSec: 0 })),
     tx,
     prisma: {
       model: { findUnique: vi.fn() },
@@ -17,6 +18,7 @@ const { requireUser, tx, prisma } = vi.hoisted(() => {
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ requireUser }));
+vi.mock("@/lib/rate-limit", () => ({ rateLimit }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
 import { addReviewAction } from "@/actions/reviews";
@@ -35,6 +37,7 @@ const approvedByOther = {
 };
 const validReview = { modelId: "m1", rating: "5", title: "Great", body: "A thorough, genuine review of the shoot." };
 
+beforeEach(() => rateLimit.mockReturnValue({ ok: true, retryAfterSec: 0 }));
 afterEach(() => vi.clearAllMocks());
 
 describe("addReviewAction", () => {
@@ -72,5 +75,13 @@ describe("addReviewAction", () => {
     const state = await addReviewAction({}, form({ modelId: "m1", rating: "0", body: "short" }));
     expect(state.fieldErrors).toBeTruthy();
     expect(prisma.model.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("throttles a member who posts reviews too quickly", async () => {
+    prisma.model.findUnique.mockResolvedValueOnce(approvedByOther);
+    rateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 60 });
+    const state = await addReviewAction({}, form(validReview));
+    expect(state.error).toMatch(/too quickly/i);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

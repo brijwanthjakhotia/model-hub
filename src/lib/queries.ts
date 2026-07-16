@@ -177,7 +177,10 @@ export async function getMembers() {
   });
 }
 
-export async function getAdminStats() {
+// cache()-wrapped: the console layout and the /admin overview page both call
+// this in the same request, so share one set of COUNTs instead of running all
+// seven twice.
+export const getAdminStats = cache(async () => {
   const [total, pending, approved, rejected, reviews, users, pendingMembers] =
     await Promise.all([
       prisma.model.count(),
@@ -189,7 +192,7 @@ export async function getAdminStats() {
       prisma.user.count({ where: { status: "PENDING" } }),
     ]);
   return { total, pending, approved, rejected, reviews, users, pendingMembers };
-}
+});
 
 export async function getSiteStats() {
   const [models, reviews, countries] = await Promise.all([
