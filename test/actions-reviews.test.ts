@@ -21,6 +21,7 @@ vi.mock("@/lib/auth", () => ({ requireUser }));
 vi.mock("@/lib/rate-limit", () => ({ rateLimit }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
+import { Prisma } from "@prisma/client";
 import { addReviewAction } from "@/actions/reviews";
 
 const form = (o: Record<string, string>) => {
@@ -83,5 +84,20 @@ describe("addReviewAction", () => {
     const state = await addReviewAction({}, form(validReview));
     expect(state.error).toMatch(/too quickly/i);
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("maps a model deleted mid-write (P2003) to the friendly message", async () => {
+    prisma.model.findUnique.mockResolvedValueOnce(approvedByOther);
+    prisma.$transaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("fk", { code: "P2003", clientVersion: "test" }),
+    );
+    const state = await addReviewAction({}, form(validReview));
+    expect(state.error).toMatch(/not available for reviews/i);
+  });
+
+  it("rethrows an unexpected transaction error", async () => {
+    prisma.model.findUnique.mockResolvedValueOnce(approvedByOther);
+    prisma.$transaction.mockRejectedValueOnce(new Error("db down"));
+    await expect(addReviewAction({}, form(validReview))).rejects.toThrow("db down");
   });
 });

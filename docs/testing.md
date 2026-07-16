@@ -67,7 +67,8 @@ docblock at the very top of the file:
 ## Coverage
 
 Current suite: **150+ tests**. Coverage is measured across the security-critical
-surface — the `lib` layer, **every server action**, and the **middleware** — not
+surface — the `lib` layer, **nearly every server action** (logout excepted), and
+the **middleware** — not
 just the pure helpers, so the headline number reflects reality (roughly **95%
 lines / ~86% branch**). `session.ts`, `constants.ts`, `utils.ts`,
 `validations.ts`, `auth-messages.ts` and `middleware.ts` sit at 100%; the

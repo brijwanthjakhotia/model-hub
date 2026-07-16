@@ -108,6 +108,9 @@ export async function decideModelAction(formData: FormData) {
         reviewNote: note || null,
         reviewedById: admin.id,
         reviewedAt: new Date(),
+        // A rejected profile can't be featured (defensive: every public read
+        // already filters status=APPROVED, but don't leave a stale flag behind).
+        ...(decision === "REJECTED" ? { featured: false } : {}),
       },
       select: { slug: true },
     });

@@ -59,9 +59,11 @@ export async function addReviewAction(
   });
 
   // Authenticate (and enforce ACTIVE status) BEFORE revealing whether the
-  // target exists or is reviewable.
+  // target exists or is reviewable. Only put the slug in `next` for an APPROVED
+  // (public) profile — otherwise the post-login redirect would confirm a
+  // PENDING/REJECTED profile's existence and slug to an anonymous caller.
   const user = await requireUser(
-    model ? `/login?next=/models/${model.slug}` : "/login",
+    model?.status === "APPROVED" ? `/login?next=/models/${model.slug}` : "/login",
   );
 
   if (!model || model.status !== "APPROVED") {

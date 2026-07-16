@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -100,7 +101,9 @@ export async function destroyAdminSession() {
  * SUPER_ADMIN → MODERATOR) takes effect immediately rather than lasting until
  * the 7-day token expires. Mirrors `requireUser`.
  */
-export async function requireAdmin(): Promise<SessionAdmin> {
+export const requireAdmin = cache(async (): Promise<SessionAdmin> => {
+  // cache()-wrapped: the (console) layout and each console page both call this
+  // per request; share one verify + DB lookup instead of running it twice.
   const session = await getCurrentAdmin();
   if (!session) redirect("/admin/login?next=/admin");
 
@@ -110,7 +113,7 @@ export async function requireAdmin(): Promise<SessionAdmin> {
   });
   if (!admin) redirect("/session/admin-blocked");
   return { id: admin.id, name: admin.name, email: admin.email, role: admin.role };
-}
+});
 
 /** Require a SUPER_ADMIN; other admins are sent back to the console. */
 export async function requireSuperAdmin(): Promise<SessionAdmin> {

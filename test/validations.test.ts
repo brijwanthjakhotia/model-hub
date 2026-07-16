@@ -158,6 +158,20 @@ describe("reviewDecisionSchema", () => {
   it("rejects an invalid decision", () => {
     expect(reviewDecisionSchema.safeParse({ modelId: "x", decision: "MAYBE" }).success).toBe(false);
   });
+
+  it("requires a note when rejecting", () => {
+    const missing = reviewDecisionSchema.safeParse({ modelId: "x", decision: "REJECTED" });
+    expect(missing.success).toBe(false);
+    expect(reviewDecisionSchema.safeParse({ modelId: "x", decision: "REJECTED", note: "" }).success).toBe(false);
+    // whitespace-only trims away → still rejected, error on the `note` path
+    const ws = reviewDecisionSchema.safeParse({ modelId: "x", decision: "REJECTED", note: "   " });
+    expect(ws.success).toBe(false);
+    if (!ws.success) expect(ws.error.flatten().fieldErrors.note).toBeTruthy();
+  });
+
+  it("allows APPROVED with no note", () => {
+    expect(reviewDecisionSchema.safeParse({ modelId: "x", decision: "APPROVED" }).success).toBe(true);
+  });
 });
 
 describe("userStatusSchema", () => {
