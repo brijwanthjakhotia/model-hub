@@ -8,7 +8,7 @@ import { ReviewList } from "@/components/reviews/review-list";
 import { ReviewSummary } from "@/components/reviews/review-summary";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getModelBySlug } from "@/lib/queries";
+import { getModelBySlug, getRatingDistribution } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -36,10 +36,9 @@ export default async function ModelProfilePage({
 
   if (!model) notFound(); // getModelBySlug returns only APPROVED profiles
 
-  const distribution = model.reviews.reduce<Record<number, number>>((acc, r) => {
-    acc[r.rating] = (acc[r.rating] ?? 0) + 1;
-    return acc;
-  }, {});
+  // Distribution is aggregated in the DB (not from the take:50-capped list), so
+  // the histogram stays accurate for models with more than 50 reviews.
+  const distribution = await getRatingDistribution(model.id);
 
   const isOwner = user?.id === model.submittedById;
   const hasReviewed = user

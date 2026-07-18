@@ -19,7 +19,11 @@ export function ProfileForm({
   // Track the email field so we can ask for the current password only when the
   // email is actually being changed (the server requires it for an email change).
   const [email, setEmail] = useState(values.email);
-  const emailChanged = email.trim().toLowerCase() !== defaults.email.toLowerCase();
+  // Compare against the last *saved* email: after a successful change the layout
+  // isn't re-rendered with new `defaults`, so use the just-saved value to avoid
+  // demanding the password again on a later name-only save.
+  const savedEmail = state.success && state.values?.email ? state.values.email : defaults.email;
+  const emailChanged = email.trim().toLowerCase() !== savedEmail.toLowerCase();
 
   return (
     <form action={formAction} className="space-y-4">

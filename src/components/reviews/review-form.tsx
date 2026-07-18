@@ -19,8 +19,10 @@ export function ReviewForm({ modelId }: { modelId: string }) {
   // Radiogroup keyboard contract: arrows move + commit the selection.
   function onStarKeyDown(e: React.KeyboardEvent, n: number) {
     let next = 0;
-    if (e.key === "ArrowRight" || e.key === "ArrowUp") next = Math.min(5, (rating || n) + 1);
-    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = Math.max(1, (rating || n) - 1);
+    // From the empty state (focus on star 1), an arrow commits the focused star
+    // rather than skipping; thereafter it steps within 1..5.
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") next = rating === 0 ? n : Math.min(5, rating + 1);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = rating === 0 ? n : Math.max(1, rating - 1);
     else return;
     e.preventDefault();
     setRating(next);

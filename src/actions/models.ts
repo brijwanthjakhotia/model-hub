@@ -124,6 +124,7 @@ export async function decideModelAction(formData: FormData) {
 
   revalidatePath("/admin/approvals");
   revalidatePath("/admin");
+  revalidatePath("/admin/models"); // roster shows the status that just changed
   revalidatePath("/models");
   revalidatePath("/");
   revalidatePath(`/models/${slug}`);

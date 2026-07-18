@@ -150,6 +150,23 @@ export const getModelForAdmin = cache(async (id: string) => {
   });
 });
 
+/**
+ * Full 1–5 star distribution for a model, aggregated in the DB (independent of
+ * the `take` cap on the reviews list). Returns { [rating]: count } with zeros
+ * omitted; callers render it against the cached ratingCount.
+ */
+export async function getRatingDistribution(modelId: string): Promise<Record<number, number>> {
+  const grouped = await prisma.review.groupBy({
+    by: ["rating"],
+    where: { modelId },
+    _count: { _all: true },
+  });
+  return grouped.reduce<Record<number, number>>((acc, g) => {
+    acc[g.rating] = g._count._all;
+    return acc;
+  }, {});
+}
+
 export async function getCategoryCounts() {
   const grouped = await prisma.model.groupBy({
     by: ["category"],

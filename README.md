@@ -131,8 +131,8 @@ password reset, models, reviews, members, admins), the auth **guards** and the
 **middleware** — ~95% line / ~84% branch coverage across that measured surface —
 plus component tests. See [docs/testing.md](docs/testing.md) for details.
 
-Continuous integration runs `typecheck → lint → test` on every push/PR (see
-[.github/workflows/ci.yml](.github/workflows/ci.yml)).
+Continuous integration runs `typecheck → lint → test → build` on every push/PR
+(see [.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
 ## Documentation
 

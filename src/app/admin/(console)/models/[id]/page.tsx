@@ -7,7 +7,7 @@ import { ModelDecisionForm } from "@/components/admin/model-decision-form";
 import { ReviewList } from "@/components/reviews/review-list";
 import { ReviewSummary } from "@/components/reviews/review-summary";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getModelForAdmin } from "@/lib/queries";
+import { getModelForAdmin, getRatingDistribution } from "@/lib/queries";
 import { requireAdmin } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 
@@ -28,10 +28,7 @@ export default async function AdminModelPreviewPage({
   const backHref = isPending ? "/admin/approvals" : "/admin/models";
   const backLabel = isPending ? "Back to approval queue" : "Back to roster";
 
-  const distribution = model.reviews.reduce<Record<number, number>>((acc, r) => {
-    acc[r.rating] = (acc[r.rating] ?? 0) + 1;
-    return acc;
-  }, {});
+  const distribution = await getRatingDistribution(model.id);
 
   return (
     <div>
