@@ -80,10 +80,36 @@ the sort option.
 - Shows the **admin's rejection note** on rejected profiles, and a link to the
   live profile once approved.
 
-## 6. Admin approval workflow
+## 6. Account settings & password reset
 
-**Routes:** `/admin`, `/admin/approvals`, `/admin/models` (any admin);
-`/admin/admins` (super admin) — admins sign in at `/admin/login`
+**Routes:** `/account` (auth required), `/forgot-password`, `/reset-password`
+**Files:** [`app/account/page.tsx`](../src/app/account/page.tsx),
+[`actions/account.ts`](../src/actions/account.ts),
+[`actions/password-reset.ts`](../src/actions/password-reset.ts),
+[`lib/mailer.ts`](../src/lib/mailer.ts)
+
+- **Account settings** — a signed-in member edits their name, email and avatar,
+  and changes their password. Changing the **email** requires re-entering the
+  current password; changing the **password** verifies the current one.
+- **Session invalidation** — a password change or reset bumps `User.tokenVersion`
+  (carried in the session JWT and re-checked by `requireUser`), so every other
+  outstanding session is invalidated. A change re-issues the current device's
+  session so it stays signed in.
+- **Forgot password** — `/forgot-password` emails a single-use, 1-hour reset
+  link. Only the SHA-256 hash of the token is stored; the response and timing are
+  identical whether or not the email exists (no account enumeration — the email
+  is dispatched post-response via `after()`).
+- **Reset password** — `/reset-password?token=…` validates and atomically
+  consumes the token (guarded on `usedAt IS NULL`, so it can't be replayed),
+  sets the new password, and redirects to login.
+- **Email delivery** — real SMTP when the `SMTP_*` env vars are set; otherwise
+  the email (and link) is logged to the server console for local dev.
+
+## 7. Admin approval workflow
+
+**Routes:** `/admin`, `/admin/approvals`, `/admin/models`,
+`/admin/models/[id]` (full-profile preview) (any admin); `/admin/admins`
+(super admin) — admins sign in at `/admin/login`
 **Files:** [`app/admin/*`](../src/app/admin), `components/admin/*`,
 `decideModelAction` / `toggleFeaturedAction` / `deleteModelAction` in
 [`actions/models.ts`](../src/actions/models.ts)
@@ -99,6 +125,10 @@ tab for super admins:
   offers **Approve & publish** or **Reject** (which reveals a required note field
   shared back to the submitter). A decision sets `status`, `reviewNote`,
   `reviewedById` and `reviewedAt`, then revalidates the affected pages.
+- **Full-profile preview** (`/admin/models/[id]`) — from the queue or the roster,
+  admins open a submission's complete profile (gallery, bio, full stats) at any
+  status before deciding, with inline Approve/Reject. Reuses the same
+  `ModelProfileView` as the public profile page.
 - **All talent** — a roster table of every profile with status, rating, a
   **feature toggle** (approved profiles only) and **delete** (with inline
   confirm).
@@ -119,7 +149,7 @@ stateDiagram-v2
 Only `APPROVED` profiles appear in the public gallery and are eligible for
 reviews.
 
-## 7. Theming & polish
+## 8. Theming & polish
 
 - Light/dark theme with no flash of the wrong theme (boot script in the root
   layout) and a persisted toggle.

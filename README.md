@@ -26,8 +26,9 @@ Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**,
   **forgot-password** flow emails a single-use, 1-hour reset link. Only the
   SHA-256 hash of each reset token is stored.
 - **Admin approval workflow** — an admin console with an overview dashboard,
-  an approval queue (approve / reject with a note), and a full roster table
-  (feature toggle, delete).
+  an approval queue (approve / reject with a note), a full-profile **preview**
+  of any submission before deciding, and a full roster table (feature toggle,
+  delete).
 - **Separate admin auth** — agency staff live in their own `Admin` table with a
   dedicated `/admin/login` and their own session cookie, fully isolated from
   public member accounts. Admin roles (`SUPER_ADMIN`, `MODERATOR`) are enforced
@@ -103,6 +104,8 @@ the login gate.
 | `npm run dev`     | Start the dev server                               |
 | `npm run build`   | Production build (`prisma generate` + `next build`)|
 | `npm run start`   | Start the production server                         |
+| `npm run typecheck` | Type-check with `tsc --noEmit`                    |
+| `npm run lint`    | Lint with ESLint (`next/core-web-vitals`)          |
 | `npm run db:push` | Sync the Prisma schema to SQLite                   |
 | `npm run db:seed` | Seed users, models and reviews                     |
 | `npm run db:reset`| Wipe + recreate + re-seed the database             |
@@ -120,10 +123,14 @@ npm test              # run once
 npm run test:coverage # with coverage report
 ```
 
-The suite has **150+ tests** covering the `lib` layer (utilities, Zod validation,
-JWT session crypto, rate limiter), the **server actions**, the auth **guards**
-and the **middleware** — ~95% line coverage across that measured surface — plus
-component tests. See [docs/testing.md](docs/testing.md) for details.
+The suite has **200+ tests** covering the `lib` layer (utilities, Zod validation,
+JWT session crypto, rate limiter, mailer), the **server actions** (auth, account,
+password reset, models, reviews, members, admins), the auth **guards** and the
+**middleware** — ~95% line / ~84% branch coverage across that measured surface —
+plus component tests. See [docs/testing.md](docs/testing.md) for details.
+
+Continuous integration runs `typecheck → lint → test` on every push/PR (see
+[.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
 ## Documentation
 

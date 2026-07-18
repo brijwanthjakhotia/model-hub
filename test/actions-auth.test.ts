@@ -4,14 +4,26 @@ import bcrypt from "bcryptjs";
 /* --- mocks for the action's collaborators ------------------------------- */
 // vi.mock is hoisted above imports, so shared mock state must be created with
 // vi.hoisted (which also runs first) to be referencable in the factories.
-const { redirect, createSession, createAdminSession, rateLimit, prisma } = vi.hoisted(() => ({
+const {
+  redirect,
+  createSession,
+  destroySession,
+  createAdminSession,
+  destroyAdminSession,
+  rateLimit,
+  peekRateLimit,
+  prisma,
+} = vi.hoisted(() => ({
   // redirect() throws in Next; model that so we can assert the target.
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
   createSession: vi.fn(),
+  destroySession: vi.fn(),
   createAdminSession: vi.fn(),
+  destroyAdminSession: vi.fn(),
   rateLimit: vi.fn(() => ({ ok: true, retryAfterSec: 0 })),
+  peekRateLimit: vi.fn(() => ({ ok: true, retryAfterSec: 0 })),
   prisma: {
     user: { findUnique: vi.fn(), create: vi.fn() },
     admin: { findUnique: vi.fn() },
@@ -21,18 +33,25 @@ const { redirect, createSession, createAdminSession, rateLimit, prisma } = vi.ho
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("@/lib/auth", () => ({
   createSession,
-  destroySession: vi.fn(),
+  destroySession,
   createAdminSession,
-  destroyAdminSession: vi.fn(),
+  destroyAdminSession,
 }));
 vi.mock("@/lib/rate-limit", () => ({
   rateLimit,
+  peekRateLimit,
   clientIp: async () => "test-ip",
 }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
 import { Prisma } from "@prisma/client";
-import { adminLoginAction, loginAction, registerAction } from "@/actions/auth";
+import {
+  adminLoginAction,
+  adminLogoutAction,
+  loginAction,
+  logoutAction,
+  registerAction,
+} from "@/actions/auth";
 
 const form = (o: Record<string, string>) => {
   const fd = new FormData();
@@ -42,6 +61,7 @@ const form = (o: Record<string, string>) => {
 
 beforeEach(() => {
   rateLimit.mockReturnValue({ ok: true, retryAfterSec: 0 });
+  peekRateLimit.mockReturnValue({ ok: true, retryAfterSec: 0 });
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -116,6 +136,7 @@ describe("loginAction", () => {
       email: "user@example.com",
       passwordHash: await bcrypt.hash(password, 10),
       status: "ACTIVE",
+      tokenVersion: 0,
       ...overrides,
     };
   }
@@ -148,20 +169,34 @@ describe("loginAction", () => {
     expect(state.error).toBe("Invalid email or password.");
   });
 
-  it("rate-limits repeated attempts", async () => {
-    rateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 60 });
+  it("rate-limits repeated FAILED attempts (per account, via peek gate)", async () => {
+    peekRateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 60 });
     const state = await loginAction({}, form({ email: "user@example.com", password }));
     expect(state.error).toMatch(/too many/i);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
   it("applies the per-IP cap after the per-account cap passes", async () => {
-    rateLimit
+    peekRateLimit
       .mockReturnValueOnce({ ok: true, retryAfterSec: 0 }) // per-account passes
       .mockReturnValueOnce({ ok: false, retryAfterSec: 60 }); // per-IP trips
     const state = await loginAction({}, form({ email: "user@example.com", password }));
     expect(state.error).toMatch(/too many/i);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("counts a failed login (increments the limiter) but not a success", async () => {
+    // Wrong password → counted.
+    prisma.user.findUnique.mockResolvedValueOnce(await activeUser());
+    await loginAction({}, form({ email: "user@example.com", password: "wrong" }));
+    expect(rateLimit).toHaveBeenCalled();
+    rateLimit.mockClear();
+    // Correct password → NOT counted.
+    prisma.user.findUnique.mockResolvedValueOnce(await activeUser());
+    await expect(
+      loginAction({}, form({ email: "user@example.com", password, next: "/dashboard" })),
+    ).rejects.toThrow("REDIRECT:/dashboard");
+    expect(rateLimit).not.toHaveBeenCalled();
   });
 });
 
@@ -189,10 +224,22 @@ describe("adminLoginAction", () => {
     expect(createAdminSession).not.toHaveBeenCalled();
   });
 
-  it("rate-limits repeated admin attempts", async () => {
-    rateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 120 });
+  it("rate-limits repeated admin attempts (peek gate)", async () => {
+    peekRateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 120 });
     const state = await adminLoginAction({}, form({ email: "super@example.com", password }));
     expect(state.error).toMatch(/too many/i);
     expect(prisma.admin.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("logout actions", () => {
+  it("logoutAction clears the member session and redirects home", async () => {
+    await expect(logoutAction()).rejects.toThrow("REDIRECT:/");
+    expect(destroySession).toHaveBeenCalledOnce();
+  });
+
+  it("adminLogoutAction clears the admin session and redirects to admin login", async () => {
+    await expect(adminLogoutAction()).rejects.toThrow("REDIRECT:/admin/login");
+    expect(destroyAdminSession).toHaveBeenCalledOnce();
   });
 });

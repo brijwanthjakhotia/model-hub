@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, X } from "lucide-react";
 import { decideModelAction } from "@/actions/models";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Textarea } from "@/components/ui/field";
 
 /**
@@ -34,10 +35,10 @@ export function ModelDecisionForm({
           className="bg-card"
         />
         <div className="flex gap-2">
-          <Button type="submit" variant="danger" size="sm">
+          <SubmitButton variant="danger" size="sm" pendingText="Rejecting…">
             <X className="h-4 w-4" />
             Confirm rejection
-          </Button>
+          </SubmitButton>
           <Button
             type="button"
             variant="ghost"
@@ -57,10 +58,10 @@ export function ModelDecisionForm({
         <input type="hidden" name="modelId" value={modelId} />
         <input type="hidden" name="decision" value="APPROVED" />
         {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
-        <Button type="submit" variant="primary" size="sm">
+        <SubmitButton variant="primary" size="sm" pendingText="Approving…">
           <Check className="h-4 w-4" />
           Approve &amp; publish
-        </Button>
+        </SubmitButton>
       </form>
       <Button
         type="button"

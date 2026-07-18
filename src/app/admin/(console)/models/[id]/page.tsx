@@ -70,7 +70,7 @@ export default async function AdminModelPreviewPage({
         </div>
       )}
 
-      <ModelProfileView model={model} />
+      <ModelProfileView model={model} headingAs="h2" />
 
       {/* Reviews (read-only) */}
       {model.ratingCount > 0 && (

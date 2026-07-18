@@ -10,6 +10,9 @@ export type SessionUser = {
   id: string;
   name: string;
   email: string;
+  /** Matches `User.tokenVersion`; a password change/reset bumps it so older
+   *  tokens fail the check in `requireUser`. */
+  tokenVersion: number;
 };
 
 /** Admin role, single-sourced from `constants` (which ties it to the Prisma enum). */
@@ -67,9 +70,15 @@ export async function verifySession(
     payload.kind !== "admin" && // an admin token must never pass as a member
     typeof payload.id === "string" &&
     typeof payload.name === "string" &&
-    typeof payload.email === "string"
+    typeof payload.email === "string" &&
+    typeof payload.tokenVersion === "number"
   ) {
-    return { id: payload.id, name: payload.name, email: payload.email };
+    return {
+      id: payload.id,
+      name: payload.name,
+      email: payload.email,
+      tokenVersion: payload.tokenVersion,
+    };
   }
   return null;
 }

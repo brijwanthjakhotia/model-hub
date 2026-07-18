@@ -15,6 +15,24 @@ All writes are **Server Actions** (`"use server"`); all reads go through the
 | `adminLoginAction` | `(prev, formData) => AuthState` | public (rate-limited) | `loginSchema` | Verifies credentials against the **`Admin`** table (constant-time on unknown email); sets `mh_admin`; redirects to `safeRedirect(next, "/admin")`. |
 | `adminLogoutAction` | `() => void` | any | — | Clears `mh_admin`; redirects to `/admin/login`. |
 
+Login lockout counts only **failed** attempts (a `peekRateLimit` gate + a
+`rateLimit` increment on failure), so a member's own successful sign-ins never
+consume the budget.
+
+### Account — [`src/actions/account.ts`](../src/actions/account.ts)
+
+| Action | Signature | Auth | Validation | Effect |
+| --- | --- | --- | --- | --- |
+| `updateProfileAction` | `(prev, formData) => AuthState` | **active member** | `updateProfileSchema` | Updates name/email/avatar; an **email change requires the current password**; maps duplicate email (P2002) to a field error; re-issues the session and revalidates the layout. |
+| `changePasswordAction` | `(prev, formData) => AuthState` | **active member** (rate-limited) | `changePasswordSchema` | Verifies the current password; sets the new hash; **bumps `tokenVersion`** (invalidates other sessions); clears reset tokens; re-issues this session. |
+
+### Password reset — [`src/actions/password-reset.ts`](../src/actions/password-reset.ts)
+
+| Action | Signature | Auth | Validation | Effect |
+| --- | --- | --- | --- | --- |
+| `requestPasswordResetAction` | `(prev, formData) => AuthState` | public (rate-limited) | `forgotPasswordSchema` | Prunes expired tokens; for an existing account, issues a single-use 1-hour token (SHA-256 hashed at rest) and emails the link via `after()`. Identical response + timing whether or not the account exists. |
+| `resetPasswordAction` | `(prev, formData) => AuthState` | public (rate-limited) | `resetPasswordSchema` | Atomically consumes the token (guarded on `usedAt IS NULL`), sets the new password, **bumps `tokenVersion`**, clears siblings; redirects to `/login?reset=1`. |
+
 ### Admins — [`src/actions/admins.ts`](../src/actions/admins.ts)
 
 | Action | Signature | Auth | Validation | Effect |

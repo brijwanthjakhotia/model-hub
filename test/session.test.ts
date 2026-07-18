@@ -16,6 +16,7 @@ const user: SessionUser = {
   id: "user_123",
   name: "Jordan Rivera",
   email: "user@modelhub.test",
+  tokenVersion: 0,
 };
 
 const admin: SessionAdmin = {

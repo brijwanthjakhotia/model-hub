@@ -38,7 +38,15 @@ export type ProfileViewModel = {
  * The gallery + details half of a model profile, shared by the public profile
  * page and the admin preview so the two never drift.
  */
-export function ModelProfileView({ model }: { model: ProfileViewModel }) {
+export function ModelProfileView({
+  model,
+  headingAs: Heading = "h1",
+}: {
+  model: ProfileViewModel;
+  /** The profile name's heading level. `h1` on the public page; `h2` where an
+   *  ancestor already owns the page `h1` (e.g. the admin console layout). */
+  headingAs?: "h1" | "h2";
+}) {
   const galleryImages = [
     ...(model.headshotUrl ? [model.headshotUrl] : []),
     ...parseGallery(model.gallery),
@@ -74,9 +82,9 @@ export function ModelProfileView({ model }: { model: ProfileViewModel }) {
           <Badge tone="outline">{model.experience}</Badge>
         </div>
 
-        <h1 className="mt-4 font-display text-4xl font-semibold sm:text-5xl">
+        <Heading className="mt-4 font-display text-4xl font-semibold sm:text-5xl">
           {model.name}
-        </h1>
+        </Heading>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">

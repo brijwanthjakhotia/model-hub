@@ -75,6 +75,7 @@ export function GalleryFiltersBar() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowMobile((v) => !v)}
+            aria-expanded={showMobile}
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-input px-4 py-2.5 text-sm font-medium lg:hidden"
           >
             <SlidersHorizontal className="h-4 w-4" />

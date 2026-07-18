@@ -3,6 +3,7 @@
 import { createHash, randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { forgotPasswordSchema, resetPasswordSchema } from "@/lib/validations";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
@@ -22,8 +23,9 @@ const hashToken = (raw: string) =>
 /**
  * Handle a "forgot password" request: create a single-use, 1-hour token for the
  * account (if one exists) and email the reset link. The response is identical
- * regardless of whether the email exists, and send failures are swallowed, so
- * neither the message nor timing reveals whether an account is registered.
+ * regardless of whether the email exists; the email is dispatched via `after()`
+ * (post-response) and the miss path does equivalent crypto work, so neither the
+ * message nor the response timing reveals whether an account is registered.
  */
 export async function requestPasswordResetAction(
   _prev: AuthState,
@@ -48,6 +50,12 @@ export async function requestPasswordResetAction(
     }
   }
 
+  // Opportunistic cleanup: prune every expired token (cheap — indexed on
+  // expiresAt), so abandoned tokens from users who never return don't pile up.
+  await prisma.passwordResetToken.deleteMany({
+    where: { expiresAt: { lt: new Date() } },
+  });
+
   const user = await prisma.user.findUnique({
     where: { email },
     select: { id: true, email: true },
@@ -55,10 +63,8 @@ export async function requestPasswordResetAction(
 
   if (user) {
     try {
-      // One live token per account: drop any earlier unused ones first.
-      await prisma.passwordResetToken.deleteMany({
-        where: { userId: user.id, usedAt: null },
-      });
+      // One token per account: clear any earlier ones (used or not) first.
+      await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
       const rawToken = randomBytes(32).toString("base64url");
       await prisma.passwordResetToken.create({
         data: {
@@ -69,12 +75,22 @@ export async function requestPasswordResetAction(
       });
       const base = await getBaseUrl();
       const url = `${base}/reset-password?token=${encodeURIComponent(rawToken)}`;
-      await sendPasswordResetEmail(user.email, url);
+      const to = user.email;
+      // Send after the response is flushed so SMTP round-trip latency can't be
+      // used as an account-existence oracle.
+      after(async () => {
+        try {
+          await sendPasswordResetEmail(to, url);
+        } catch (err) {
+          console.error("[password-reset] send failed:", err);
+        }
+      });
     } catch (err) {
-      // Never let a DB/SMTP hiccup turn into a different response for a real
-      // account — log server-side and fall through to the generic message.
       console.error("[password-reset] failed to issue reset token:", err);
     }
+  } else {
+    // Equalize crypto work with the hit path so timing doesn't leak existence.
+    hashToken(randomBytes(32).toString("base64url"));
   }
 
   return { success: GENERIC_SENT, values: raw };
@@ -82,8 +98,9 @@ export async function requestPasswordResetAction(
 
 /**
  * Complete a password reset from an emailed token. Validates the token (exists,
- * unused, unexpired), sets the new password, then consumes the token and clears
- * any siblings. On success, redirects to the login page.
+ * unused, unexpired), then — atomically — consumes it (guarded on `usedAt IS
+ * NULL` so it can't be replayed), sets the new password, bumps `tokenVersion`
+ * to invalidate every existing session, and clears sibling tokens.
  */
 export async function resetPasswordAction(
   _prev: AuthState,
@@ -115,27 +132,33 @@ export async function resetPasswordAction(
     select: { id: true, userId: true, expiresAt: true, usedAt: true },
   });
 
-  const invalid = { error: "This reset link is invalid or has expired. Please request a new one." };
+  const invalid = {
+    error: "This reset link is invalid or has expired. Please request a new one.",
+  };
   if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
     return invalid;
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  // Set the password, consume this token, and drop every other token for the
-  // account — atomically, so a token can't be replayed.
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: record.userId },
-      data: { passwordHash },
-    }),
-    prisma.passwordResetToken.update({
-      where: { id: record.id },
+  // Consume + set password + invalidate sessions + drop siblings, atomically.
+  // The `usedAt: null` guard makes consumption conditional, so two concurrent
+  // submissions of the same token can't both succeed (no replay).
+  const consumed = await prisma.$transaction(async (tx) => {
+    const res = await tx.passwordResetToken.updateMany({
+      where: { id: record.id, usedAt: null },
       data: { usedAt: new Date() },
-    }),
-    prisma.passwordResetToken.deleteMany({
+    });
+    if (res.count === 0) return false;
+    await tx.user.update({
+      where: { id: record.userId },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+    });
+    await tx.passwordResetToken.deleteMany({
       where: { userId: record.userId, id: { not: record.id } },
-    }),
-  ]);
+    });
+    return true;
+  });
+  if (!consumed) return invalid;
 
   redirect("/login?reset=1");
 }

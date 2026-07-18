@@ -160,7 +160,21 @@ export async function getPendingModels() {
   return prisma.model.findMany({
     where: { status: "PENDING" },
     orderBy: { createdAt: "asc" },
-    include: { submittedBy: { select: { name: true, email: true } } },
+    // Only the columns ApprovalCard renders — avoids shipping unused stats.
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      location: true,
+      heightCm: true,
+      experience: true,
+      bio: true,
+      headshotUrl: true,
+      gallery: true,
+      instagram: true,
+      createdAt: true,
+      submittedBy: { select: { name: true, email: true } },
+    },
   });
 }
 

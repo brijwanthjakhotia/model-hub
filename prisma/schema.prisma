@@ -41,6 +41,9 @@ model User {
   passwordHash String
   status       UserStatus @default(PENDING) // only ACTIVE members may sign in
   avatarUrl    String?
+  // Bumped on password change/reset to invalidate every previously-issued
+  // session JWT (the token carries this value; requireUser compares it).
+  tokenVersion Int        @default(0)
   createdAt    DateTime   @default(now())
 
   models              Model[]              @relation("SubmittedModels")
@@ -64,6 +67,7 @@ model PasswordResetToken {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt]) // supports periodic cleanup of expired tokens
 }
 
 /// Agency staff who sign in to the admin console. Fully separate from `User`:
@@ -130,6 +134,9 @@ model Model {
 
   @@index([status])
   @@index([category])
+  @@index([status, ratingAvg]) // gallery: APPROVED filter + top-rated/featured sort
+  @@index([status, featured]) // featured landing cards
+  @@index([status, category]) // gallery category filter
   @@index([submittedById]) // dashboard "my submissions" + per-member counts
   @@index([reviewedById]) // approval audit lookups + SET NULL on admin delete
 }
