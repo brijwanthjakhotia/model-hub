@@ -19,9 +19,6 @@
     "test:coverage": "vitest run --coverage",
     "postinstall": "prisma generate"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@prisma/client": "^6.2.1",
     "bcryptjs": "^2.4.3",
@@ -47,6 +44,7 @@
     "@types/react-dom": "^19.0.3",
     "@vitest/coverage-v8": "^2.1.9",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^16.6.1",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.20",
     "jsdom": "^25.0.1",

@@ -1,11 +1,11 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/auth";
 import { createAdminSchema } from "@/lib/validations";
+import { isUniqueViolation } from "@/lib/prisma-errors";
 import type { AuthState } from "@/actions/auth";
 
 /** Same shape as AuthState (error/success/fieldErrors/values) — kept as a named
@@ -45,7 +45,7 @@ export async function createAdminAction(
       },
     });
   } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    if (isUniqueViolation(e)) {
       return {
         error: "An admin with that email already exists.",
         values: { name: raw.name, email: raw.email, role: raw.role },

@@ -1,7 +1,6 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import {
@@ -14,13 +13,10 @@ import { loginSchema, registerSchema } from "@/lib/validations";
 import { safeRedirect } from "@/lib/utils";
 import { statusLoginMessage, tooManyMsg } from "@/lib/auth-messages";
 import { rateLimit, peekRateLimit, clientIp } from "@/lib/rate-limit";
+import { isUniqueViolation } from "@/lib/prisma-errors";
+import type { FormState } from "@/lib/form-state";
 
-export type AuthState = {
-  error?: string;
-  success?: string;
-  fieldErrors?: Record<string, string[]>;
-  values?: Record<string, string>;
-};
+export type AuthState = FormState;
 
 export async function registerAction(
   _prev: AuthState,
@@ -65,7 +61,7 @@ export async function registerAction(
       },
     });
   } catch (e) {
-    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) {
+    if (!isUniqueViolation(e)) {
       throw e;
     }
   }

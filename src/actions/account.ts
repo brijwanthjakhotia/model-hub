@@ -1,13 +1,13 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser, createSession } from "@/lib/auth";
 import { updateProfileSchema, changePasswordSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { tooManyMsg } from "@/lib/auth-messages";
+import { isUniqueViolation } from "@/lib/prisma-errors";
 import type { AuthState } from "@/actions/auth";
 
 /**
@@ -66,7 +66,7 @@ export async function updateProfileAction(
   } catch (e) {
     // A logged-in member editing their own account: surface the email clash
     // directly (they already know their own account exists).
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    if (isUniqueViolation(e)) {
       return {
         fieldErrors: { email: ["That email is already in use."] },
         values: raw,

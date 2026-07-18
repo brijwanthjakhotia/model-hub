@@ -31,6 +31,7 @@ export function GalleryFiltersBar() {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    params.delete("page"); // any filter/search change returns to page 1
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     });

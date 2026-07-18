@@ -2,23 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser, requireAdmin } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { modelSchema, reviewDecisionSchema } from "@/lib/validations";
 import { parseGalleryUrls, safeRedirect, slugify } from "@/lib/utils";
+import { isUniqueViolation, isNotFound } from "@/lib/prisma-errors";
+import type { FormState } from "@/lib/form-state";
 
-export type ModelFormState = {
-  error?: string;
-  fieldErrors?: Record<string, string[]>;
-  values?: Record<string, string>;
-};
-
-const isUniqueViolation = (e: unknown) =>
-  e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
-const isNotFound = (e: unknown) =>
-  e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025";
+export type ModelFormState = FormState;
 
 export async function createModelAction(
   _prev: ModelFormState,
