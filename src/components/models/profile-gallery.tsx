@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
 import { ModelImage } from "@/components/ui/model-image";
 import { cn } from "@/lib/utils";
@@ -16,14 +16,24 @@ export function ProfileGallery({
   const slides = images.length ? images : [""];
   const [active, setActive] = useState(0);
   const [lightbox, setLightbox] = useState(false);
+  const expandRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   const go = (dir: number) =>
     setActive((i) => (i + dir + slides.length) % slides.length);
 
+  // Close and return focus to the trigger that opened the viewer.
+  const closeLightbox = () => {
+    setLightbox(false);
+    expandRef.current?.focus();
+  };
+
   useEffect(() => {
     if (!lightbox) return;
+    // Move focus into the dialog on open.
+    closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightbox(false);
+      if (e.key === "Escape") closeLightbox();
       if (e.key === "ArrowRight") go(1);
       if (e.key === "ArrowLeft") go(-1);
     };
@@ -43,6 +53,7 @@ export function ProfileGallery({
         />
         {images.length > 0 && (
           <button
+            ref={expandRef}
             onClick={() => setLightbox(true)}
             className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white opacity-0 backdrop-blur transition-opacity focus-ring group-hover:opacity-100"
             aria-label="Expand image"
@@ -81,10 +92,18 @@ export function ProfileGallery({
       {/* Lightbox */}
       {lightbox && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${name} — image viewer`}
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setLightbox(false)}
+          onClick={closeLightbox}
         >
           <button
+            ref={closeRef}
+            onClick={(e) => {
+              e.stopPropagation();
+              closeLightbox();
+            }}
             className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 focus-ring"
             aria-label="Close"
           >

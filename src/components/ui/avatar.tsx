@@ -1,6 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
-import { gradientFromString, initials } from "@/lib/utils";
+import { cn, gradientFromString, initials } from "@/lib/utils";
 
 /** Small circular avatar with deterministic gradient + initials fallback. */
 export function Avatar({
@@ -14,6 +16,10 @@ export function Avatar({
   size?: number;
   className?: string;
 }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  const showImage = src && !failed;
+
   return (
     <span
       className={cn(
@@ -26,13 +32,17 @@ export function Avatar({
         background: gradientFromString(name),
       }}
     >
-      {src ? (
+      {showImage ? (
         <Image
           src={src}
           alt={name}
           fill
           sizes={`${size}px`}
           className="object-cover"
+          // See ModelImage: avatars are arbitrary user URLs; skip the optimizer
+          // so an unknown host degrades to the initials fallback, not a crash.
+          unoptimized
+          onError={() => setFailed(true)}
         />
       ) : (
         initials(name)

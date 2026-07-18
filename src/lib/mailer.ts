@@ -1,5 +1,4 @@
 import "server-only";
-import { headers } from "next/headers";
 import nodemailer, { type Transporter } from "nodemailer";
 
 type MailInput = {
@@ -92,16 +91,17 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
 }
 
 /**
- * Absolute base URL for building links in emails. Prefers `APP_URL`; otherwise
- * derives it from the incoming request headers (works in local dev).
+ * Absolute base URL for links embedded in emails.
+ *
+ * Deliberately does NOT trust the request `Host` header: a reset link carries a
+ * live token, and an attacker-controlled Host would let them poison it (send the
+ * victim a genuine email that points the token at the attacker's domain). So the
+ * base is authoritative config: `APP_URL` when set, a fixed localhost default in
+ * development, and a hard failure in production if `APP_URL` is missing.
  */
-export async function getBaseUrl(): Promise<string> {
+export function getBaseUrl(): string {
   const envUrl = process.env.APP_URL?.replace(/\/+$/, "");
   if (envUrl) return envUrl;
-  const h = await headers();
-  const host = h.get("host") ?? "localhost:3000";
-  const proto =
-    h.get("x-forwarded-proto") ??
-    (process.env.NODE_ENV === "production" ? "https" : "http");
-  return `${proto}://${host}`;
+  if (process.env.NODE_ENV !== "production") return "http://localhost:3000";
+  throw new Error("APP_URL must be set in production to build absolute email links.");
 }

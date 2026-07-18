@@ -26,17 +26,21 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+/** An http(s) URL. `z.url()` alone accepts `javascript:`/`data:` schemes, which
+ *  must never reach an <img src> or a link href — restrict to http(s). */
+const httpUrl = (max = 2048) =>
+  z
+    .string()
+    .trim()
+    .url("Must be a valid URL")
+    .max(max)
+    .refine((v) => /^https?:\/\//i.test(v), "Only http(s) URLs are allowed");
+
 /** Fields a signed-in member may edit on their own account. */
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(60),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
-  avatarUrl: z
-    .string()
-    .trim()
-    .url("Must be a valid URL")
-    .max(500)
-    .optional()
-    .or(z.literal("")),
+  avatarUrl: httpUrl(500).optional().or(z.literal("")),
 });
 
 /** Change password while signed in: verify current, set a new one. */
@@ -127,7 +131,7 @@ export const modelSchema = z.object({
   eyeColor: z.enum(EYE_COLORS).optional().or(z.literal("")),
   instagram: z.string().trim().max(60).optional().or(z.literal("")),
   agencyEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
-  headshotUrl: z.string().trim().url("Must be a valid URL").optional().or(z.literal("")),
+  headshotUrl: httpUrl().optional().or(z.literal("")),
   gallery: z.string().max(4000).optional(), // newline or comma separated URLs
 });
 

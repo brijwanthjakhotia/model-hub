@@ -1,12 +1,9 @@
-"use client";
-
-import { useState } from "react";
-import { Check, MapPin, Ruler, X } from "lucide-react";
-import { decideModelAction } from "@/actions/models";
+import Link from "next/link";
+import { Eye, MapPin, Ruler } from "lucide-react";
 import { ModelImage } from "@/components/ui/model-image";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/field";
+import { ButtonLink } from "@/components/ui/button";
+import { ModelDecisionForm } from "@/components/admin/model-decision-form";
 import { parseGallery } from "@/lib/utils";
 
 type PendingModel = {
@@ -25,7 +22,6 @@ type PendingModel = {
 };
 
 export function ApprovalCard({ model }: { model: PendingModel }) {
-  const [rejecting, setRejecting] = useState(false);
   const galleryCount = parseGallery(model.gallery).length;
 
   return (
@@ -37,7 +33,12 @@ export function ApprovalCard({ model }: { model: PendingModel }) {
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-display text-xl font-semibold">{model.name}</h3>
+            <Link
+              href={`/admin/models/${model.id}`}
+              className="font-display text-xl font-semibold hover:text-accent"
+            >
+              {model.name}
+            </Link>
             <Badge tone="accent">{model.category}</Badge>
             <Badge tone="outline">{model.experience}</Badge>
           </div>
@@ -58,64 +59,24 @@ export function ApprovalCard({ model }: { model: PendingModel }) {
             {model.bio}
           </p>
 
-          <p className="mt-3 text-xs text-muted-foreground">
-            Submitted by{" "}
-            <span className="font-medium text-foreground">
-              {model.submittedBy?.name ?? "Unknown"}
-            </span>{" "}
-            ({model.submittedBy?.email ?? "—"})
-          </p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Submitted by{" "}
+              <span className="font-medium text-foreground">
+                {model.submittedBy?.name ?? "Unknown"}
+              </span>{" "}
+              ({model.submittedBy?.email ?? "—"})
+            </p>
+            <ButtonLink href={`/admin/models/${model.id}`} variant="outline" size="sm">
+              <Eye className="h-4 w-4" />
+              View full profile
+            </ButtonLink>
+          </div>
         </div>
       </div>
 
       <div className="border-t border-border bg-muted/30 p-4 sm:px-5">
-        {rejecting ? (
-          <form action={decideModelAction} className="space-y-3">
-            <input type="hidden" name="modelId" value={model.id} />
-            <input type="hidden" name="decision" value="REJECTED" />
-            <Textarea
-              name="note"
-              placeholder="Reason for rejection (shared with the submitter)…"
-              rows={2}
-              required
-              className="bg-card"
-            />
-            <div className="flex gap-2">
-              <Button type="submit" variant="danger" size="sm">
-                <X className="h-4 w-4" />
-                Confirm rejection
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setRejecting(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            <form action={decideModelAction}>
-              <input type="hidden" name="modelId" value={model.id} />
-              <input type="hidden" name="decision" value="APPROVED" />
-              <Button type="submit" variant="primary" size="sm">
-                <Check className="h-4 w-4" />
-                Approve &amp; publish
-              </Button>
-            </form>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setRejecting(true)}
-            >
-              <X className="h-4 w-4" />
-              Reject
-            </Button>
-          </div>
-        )}
+        <ModelDecisionForm modelId={model.id} />
       </div>
     </div>
   );

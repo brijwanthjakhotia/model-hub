@@ -48,12 +48,16 @@ export function ReviewForm({ modelId }: { modelId: string }) {
       <input type="hidden" name="rating" value={rating} />
 
       <div>
-        <span className="mb-1.5 block text-sm font-medium">Your rating</span>
-        <div className="flex items-center gap-1">
+        <span id="rating-label" className="mb-1.5 block text-sm font-medium">
+          Your rating
+        </span>
+        <div className="flex items-center gap-1" role="radiogroup" aria-labelledby="rating-label">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
+              role="radio"
+              aria-checked={n === rating}
               onClick={() => setRating(n)}
               onMouseEnter={() => setHover(n)}
               onMouseLeave={() => setHover(0)}

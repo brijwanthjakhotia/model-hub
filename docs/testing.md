@@ -66,14 +66,15 @@ docblock at the very top of the file:
 
 ## Coverage
 
-Current suite: **150+ tests**. Coverage is measured across the security-critical
-surface — the `lib` layer, **nearly every server action** (logout excepted), and
-the **middleware** — not
-just the pure helpers, so the headline number reflects reality (roughly **95%
-lines / ~86% branch**). `session.ts`, `constants.ts`, `utils.ts`,
-`validations.ts`, `auth-messages.ts` and `middleware.ts` sit at 100%; the
-remainder is cookie setters and the header-parsing half of `rate-limit.ts`.
-Run `npm run test:coverage` for the exact, current per-file table.
+Current suite: **200+ tests**. Coverage is measured across the security-critical
+surface — the `lib` layer (including the `mailer`), **every server action**
+(auth incl. logout, account, password reset, models, reviews, members, admins),
+and the **middleware** — not just the pure helpers, so the headline number
+reflects reality (roughly **95% lines / ~84% branch**). `session.ts`,
+`constants.ts`, `utils.ts`, `validations.ts`, `auth-messages.ts`, `mailer.ts`
+and `middleware.ts` sit at/near 100%; the remainder is cookie setters and the
+header-parsing half of `rate-limit.ts`. Run `npm run test:coverage` for the
+exact, current per-file table.
 
 ### What's covered
 

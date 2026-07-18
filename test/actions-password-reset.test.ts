@@ -3,26 +3,34 @@ import { createHash } from "crypto";
 import bcrypt from "bcryptjs";
 
 /* --- mocks for the action's collaborators ------------------------------- */
-const { redirect, rateLimit, prisma, sendPasswordResetEmail, getBaseUrl } = vi.hoisted(() => ({
-  redirect: vi.fn((url: string) => {
-    throw new Error(`REDIRECT:${url}`);
-  }),
-  rateLimit: vi.fn(() => ({ ok: true, retryAfterSec: 0 })),
-  prisma: {
-    user: { findUnique: vi.fn(), update: vi.fn() },
-    passwordResetToken: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      deleteMany: vi.fn(),
+const { redirect, rateLimit, tx, prisma, sendPasswordResetEmail, getBaseUrl } = vi.hoisted(() => {
+  const tx = {
+    user: { update: vi.fn() },
+    passwordResetToken: { updateMany: vi.fn(), deleteMany: vi.fn() },
+  };
+  return {
+    redirect: vi.fn((url: string) => {
+      throw new Error(`REDIRECT:${url}`);
+    }),
+    rateLimit: vi.fn(() => ({ ok: true, retryAfterSec: 0 })),
+    tx,
+    prisma: {
+      user: { findUnique: vi.fn() },
+      passwordResetToken: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        deleteMany: vi.fn(async () => ({ count: 0 })),
+      },
+      $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
     },
-    $transaction: vi.fn(async () => []),
-  },
-  sendPasswordResetEmail: vi.fn(async () => {}),
-  getBaseUrl: vi.fn(async () => "http://localhost:3000"),
-}));
+    sendPasswordResetEmail: vi.fn(async () => {}),
+    getBaseUrl: vi.fn(async () => "http://localhost:3000"),
+  };
+});
 
 vi.mock("next/navigation", () => ({ redirect }));
+// `after` runs post-response in prod; invoke the callback immediately in tests.
+vi.mock("next/server", () => ({ after: (fn: () => unknown) => void fn() }));
 vi.mock("@/lib/rate-limit", () => ({ rateLimit, clientIp: async () => "test-ip" }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
 vi.mock("@/lib/mailer", () => ({ sendPasswordResetEmail, getBaseUrl }));
@@ -39,6 +47,7 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 beforeEach(() => {
   rateLimit.mockReturnValue({ ok: true, retryAfterSec: 0 });
+  tx.passwordResetToken.updateMany.mockResolvedValue({ count: 1 });
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -47,7 +56,6 @@ afterEach(() => {
 describe("requestPasswordResetAction", () => {
   it("creates a token and emails a reset link for a known account", async () => {
     prisma.user.findUnique.mockResolvedValueOnce({ id: "u1", email: "user@example.com" });
-    prisma.passwordResetToken.deleteMany.mockResolvedValueOnce({ count: 0 });
     prisma.passwordResetToken.create.mockResolvedValueOnce({});
 
     const state = await requestPasswordResetAction({}, form({ email: "user@example.com" }));
@@ -74,7 +82,6 @@ describe("requestPasswordResetAction", () => {
   it("swallows send failures and still returns the generic success (no enumeration)", async () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     prisma.user.findUnique.mockResolvedValueOnce({ id: "u1", email: "user@example.com" });
-    prisma.passwordResetToken.deleteMany.mockResolvedValueOnce({ count: 0 });
     prisma.passwordResetToken.create.mockResolvedValueOnce({});
     sendPasswordResetEmail.mockRejectedValueOnce(new Error("smtp down"));
 
@@ -101,14 +108,13 @@ describe("resetPasswordAction", () => {
   const future = () => new Date(Date.now() + 60_000);
   const past = () => new Date(Date.now() - 60_000);
 
-  it("sets a new password for a valid token and redirects to login", async () => {
+  it("sets a new password, bumps tokenVersion, and redirects to login", async () => {
     prisma.passwordResetToken.findUnique.mockResolvedValueOnce({
       id: "t1",
       userId: "u1",
       expiresAt: future(),
       usedAt: null,
     });
-    prisma.$transaction.mockResolvedValueOnce([]);
 
     await expect(
       resetPasswordAction({}, form({ token: "raw-token", password: "brandnew1", confirmPassword: "brandnew1" })),
@@ -119,9 +125,30 @@ describe("resetPasswordAction", () => {
       where: { tokenHash: sha256("raw-token") },
       select: expect.anything(),
     });
-    expect(prisma.$transaction).toHaveBeenCalledOnce();
-    const storedHash = prisma.user.update.mock.calls[0][0].data.passwordHash;
-    expect(await bcrypt.compare("brandnew1", storedHash)).toBe(true);
+    // Consumed conditionally (guarded on usedAt: null).
+    expect(tx.passwordResetToken.updateMany).toHaveBeenCalledWith({
+      where: { id: "t1", usedAt: null },
+      data: { usedAt: expect.any(Date) },
+    });
+    const data = tx.user.update.mock.calls[0][0].data;
+    expect(await bcrypt.compare("brandnew1", data.passwordHash)).toBe(true);
+    expect(data.tokenVersion).toEqual({ increment: 1 });
+  });
+
+  it("rejects a token already consumed by a concurrent request", async () => {
+    prisma.passwordResetToken.findUnique.mockResolvedValueOnce({
+      id: "t1",
+      userId: "u1",
+      expiresAt: future(),
+      usedAt: null,
+    });
+    tx.passwordResetToken.updateMany.mockResolvedValueOnce({ count: 0 }); // lost the race
+    const state = await resetPasswordAction(
+      {},
+      form({ token: "raw-token", password: "brandnew1", confirmPassword: "brandnew1" }),
+    );
+    expect(state.error).toMatch(/invalid or has expired/i);
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
   it("rejects an expired token", async () => {

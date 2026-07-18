@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 
 /* --- mocks for the action's collaborators ------------------------------- */
 const { requireUser, createSession, revalidatePath, rateLimit, prisma } = vi.hoisted(() => ({
-  requireUser: vi.fn(async () => ({ id: "u1", name: "Jordan", email: "user@example.com" })),
+  requireUser: vi.fn(async () => ({ id: "u1", name: "Jordan", email: "user@example.com", tokenVersion: 0 })),
   createSession: vi.fn(),
   revalidatePath: vi.fn(),
   rateLimit: vi.fn(() => ({ ok: true, retryAfterSec: 0 })),
@@ -29,47 +29,87 @@ const form = (o: Record<string, string>) => {
 
 beforeEach(() => {
   rateLimit.mockReturnValue({ ok: true, retryAfterSec: 0 });
-  requireUser.mockResolvedValue({ id: "u1", name: "Jordan", email: "user@example.com" });
+  requireUser.mockResolvedValue({ id: "u1", name: "Jordan", email: "user@example.com", tokenVersion: 0 });
 });
 afterEach(() => {
   vi.clearAllMocks();
 });
 
 describe("updateProfileAction", () => {
-  it("updates the profile, re-issues the session, and revalidates", async () => {
+  it("enforces auth via requireUser", async () => {
+    prisma.user.update.mockResolvedValueOnce({});
+    await updateProfileAction({}, form({ name: "New Name", email: "user@example.com", avatarUrl: "" }));
+    expect(requireUser).toHaveBeenCalled();
+  });
+
+  it("updates name/avatar (no email change → no re-auth) and re-issues the session", async () => {
     prisma.user.update.mockResolvedValueOnce({});
     const state = await updateProfileAction(
       {},
-      form({ name: "New Name", email: "New@Example.com", avatarUrl: "https://x/y.png" }),
+      form({ name: "New Name", email: "user@example.com", avatarUrl: "https://x/y.png" }),
     );
 
     expect(state.success).toBeTruthy();
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "u1" },
-      data: { name: "New Name", email: "new@example.com", avatarUrl: "https://x/y.png" },
+      data: { name: "New Name", email: "user@example.com", avatarUrl: "https://x/y.png" },
     });
-    // Session refreshed with the new identity so the header updates.
+    // Session refreshed carrying the unchanged tokenVersion.
     expect(createSession).toHaveBeenCalledWith({
       id: "u1",
       name: "New Name",
-      email: "new@example.com",
+      email: "user@example.com",
+      tokenVersion: 0,
     });
     expect(revalidatePath).toHaveBeenCalled();
+    // No email change → no password re-check.
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("requires the current password to change the email", async () => {
+    prisma.user.findUnique.mockResolvedValueOnce({ passwordHash: await bcrypt.hash("secret1", 10) });
+    const state = await updateProfileAction(
+      {},
+      form({ name: "Jordan", email: "new@example.com", avatarUrl: "", currentPassword: "wrong" }),
+    );
+    expect(state.fieldErrors?.currentPassword?.[0]).toMatch(/current password/i);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("changes the email when the current password is correct", async () => {
+    prisma.user.findUnique.mockResolvedValueOnce({ passwordHash: await bcrypt.hash("secret1", 10) });
+    prisma.user.update.mockResolvedValueOnce({});
+    const state = await updateProfileAction(
+      {},
+      form({ name: "Jordan", email: "new@example.com", avatarUrl: "", currentPassword: "secret1" }),
+    );
+    expect(state.success).toBeTruthy();
+    expect(prisma.user.update.mock.calls[0][0].data.email).toBe("new@example.com");
   });
 
   it("stores an empty avatar as null", async () => {
     prisma.user.update.mockResolvedValueOnce({});
-    await updateProfileAction({}, form({ name: "New Name", email: "new@example.com", avatarUrl: "" }));
+    await updateProfileAction({}, form({ name: "New Name", email: "user@example.com", avatarUrl: "" }));
     expect(prisma.user.update.mock.calls[0][0].data.avatarUrl).toBeNull();
   });
 
+  it("rejects a non-http(s) avatar URL", async () => {
+    const state = await updateProfileAction(
+      {},
+      form({ name: "New Name", email: "user@example.com", avatarUrl: "javascript:alert(1)" }),
+    );
+    expect(state.fieldErrors?.avatarUrl).toBeTruthy();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
   it("maps a duplicate email (P2002) to a field error and leaves the session alone", async () => {
+    prisma.user.findUnique.mockResolvedValueOnce({ passwordHash: await bcrypt.hash("secret1", 10) });
     prisma.user.update.mockRejectedValueOnce(
       new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "test" }),
     );
     const state = await updateProfileAction(
       {},
-      form({ name: "New Name", email: "taken@example.com", avatarUrl: "" }),
+      form({ name: "New Name", email: "taken@example.com", avatarUrl: "", currentPassword: "secret1" }),
     );
     expect(state.fieldErrors?.email?.[0]).toMatch(/already in use/i);
     expect(createSession).not.toHaveBeenCalled();
@@ -83,9 +123,9 @@ describe("updateProfileAction", () => {
 });
 
 describe("changePasswordAction", () => {
-  it("changes the password when the current one is correct", async () => {
+  it("changes the password, bumps tokenVersion, re-issues the session, clears reset tokens", async () => {
     prisma.user.findUnique.mockResolvedValueOnce({ passwordHash: await bcrypt.hash("realpass1", 10) });
-    prisma.user.update.mockResolvedValueOnce({});
+    prisma.user.update.mockResolvedValueOnce({ tokenVersion: 1 });
     prisma.passwordResetToken.deleteMany.mockResolvedValueOnce({ count: 0 });
 
     const state = await changePasswordAction(
@@ -94,10 +134,14 @@ describe("changePasswordAction", () => {
     );
 
     expect(state.success).toBeTruthy();
-    const storedHash = prisma.user.update.mock.calls[0][0].data.passwordHash;
-    expect(await bcrypt.compare("brandnew1", storedHash)).toBe(true);
-    // Any outstanding reset tokens are invalidated.
+    const data = prisma.user.update.mock.calls[0][0].data;
+    expect(await bcrypt.compare("brandnew1", data.passwordHash)).toBe(true);
+    expect(data.tokenVersion).toEqual({ increment: 1 });
     expect(prisma.passwordResetToken.deleteMany).toHaveBeenCalledWith({ where: { userId: "u1" } });
+    // Current session re-issued with the new tokenVersion so this device stays in.
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "u1", tokenVersion: 1 }),
+    );
   });
 
   it("rejects an incorrect current password with a field error", async () => {

@@ -37,6 +37,27 @@ export async function updateProfileAction(
   const { name, email } = parsed.data;
   const avatarUrl = parsed.data.avatarUrl ? parsed.data.avatarUrl : null;
 
+  // Changing the login email requires re-entering the current password, so a
+  // hijacked session can't silently repoint the account to an attacker's inbox.
+  if (email !== user.email) {
+    const account = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { passwordHash: true },
+    });
+    if (!account) {
+      return { error: "Your session has expired. Please sign in again." };
+    }
+    const currentPassword = String(formData.get("currentPassword") ?? "");
+    if (!currentPassword || !(await bcrypt.compare(currentPassword, account.passwordHash))) {
+      return {
+        fieldErrors: {
+          currentPassword: ["Enter your current password to change your email."],
+        },
+        values: raw,
+      };
+    }
+  }
+
   try {
     await prisma.user.update({
       where: { id: user.id },
@@ -56,7 +77,7 @@ export async function updateProfileAction(
 
   // Re-issue the session so the header + subsequent requests reflect the new
   // name/email, then refresh the layout that renders them.
-  await createSession({ id: user.id, name, email });
+  await createSession({ id: user.id, name, email, tokenVersion: user.tokenVersion });
   revalidatePath("/", "layout");
 
   return {
@@ -105,14 +126,24 @@ export async function changePasswordAction(
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
-  await prisma.user.update({
+  // Bump tokenVersion to invalidate every other outstanding session; re-issue
+  // THIS session below so the current device stays signed in.
+  const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
+    select: { tokenVersion: true },
   });
 
   // Belt-and-braces: invalidate any outstanding password-reset tokens now that
   // the password has changed by other means.
   await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+
+  await createSession({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    tokenVersion: updated.tokenVersion,
+  });
 
   return { success: "Your password has been changed." };
 }

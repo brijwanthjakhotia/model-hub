@@ -37,6 +37,7 @@ export function Header({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Close the account menu on outside click or Escape. (Using onBlur to close
   // races with — and can swallow — a click on a menu item, so it lives here.)
@@ -48,7 +49,10 @@ export function Header({
       }
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuTriggerRef.current?.focus(); // return focus to the trigger
+      }
     }
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -103,9 +107,10 @@ export function Header({
           {user ? (
             <div className="relative hidden md:block" ref={menuRef}>
               <button
+                ref={menuTriggerRef}
                 onClick={() => setMenuOpen((v) => !v)}
-                aria-haspopup="menu"
                 aria-expanded={menuOpen}
+                aria-controls="account-menu"
                 className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-muted focus-ring"
               >
                 <Avatar name={user.name} size={32} />
@@ -114,7 +119,10 @@ export function Header({
                 </span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-card p-1.5 shadow-lift">
+                <div
+                  id="account-menu"
+                  className="absolute right-0 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-card p-1.5 shadow-lift"
+                >
                   <div className="px-3 py-2">
                     <p className="truncate text-sm font-medium">{user.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
@@ -164,6 +172,8 @@ export function Header({
             className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted focus-ring md:hidden"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-menu"
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -172,7 +182,7 @@ export function Header({
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="border-t border-border bg-background md:hidden">
+        <div id="mobile-menu" className="border-t border-border bg-background md:hidden">
           <div className="container flex flex-col gap-1 py-4">
             {navLinks.map((link) => (
               <Link

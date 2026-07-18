@@ -127,6 +127,23 @@ export const getModelBySlug = cache(async (slug: string) => {
   });
 });
 
+// Full profile for the admin preview — by id, ANY status (so staff can review a
+// PENDING/REJECTED submission before deciding). Admin-gated at the page/route
+// level; never used by public reads.
+export const getModelForAdmin = cache(async (id: string) => {
+  return prisma.model.findUnique({
+    where: { id },
+    include: {
+      reviews: {
+        orderBy: { createdAt: "desc" },
+        include: { author: { select: { id: true, name: true, avatarUrl: true } } },
+      },
+      submittedBy: { select: { id: true, name: true, email: true } },
+      reviewedBy: { select: { name: true } },
+    },
+  });
+});
+
 export async function getCategoryCounts() {
   const grouped = await prisma.model.groupBy({
     by: ["category"],
@@ -143,7 +160,21 @@ export async function getPendingModels() {
   return prisma.model.findMany({
     where: { status: "PENDING" },
     orderBy: { createdAt: "asc" },
-    include: { submittedBy: { select: { name: true, email: true } } },
+    // Only the columns ApprovalCard renders — avoids shipping unused stats.
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      location: true,
+      heightCm: true,
+      experience: true,
+      bio: true,
+      headshotUrl: true,
+      gallery: true,
+      instagram: true,
+      createdAt: true,
+      submittedBy: { select: { name: true, email: true } },
+    },
   });
 }
 

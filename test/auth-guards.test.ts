@@ -47,22 +47,36 @@ describe("requireUser (fresh status re-check)", () => {
   });
 
   it("returns an ACTIVE member from the DB, not the token", async () => {
-    setCookie(SESSION_COOKIE, await signSession({ id: "u1", name: "J", email: "j@x.com" }));
+    setCookie(SESSION_COOKIE, await signSession({ id: "u1", name: "J", email: "j@x.com", tokenVersion: 0 }));
     prisma.user.findUnique.mockResolvedValueOnce({
       id: "u1",
       name: "Fresh Name",
       email: "j@x.com",
       status: "ACTIVE",
+      tokenVersion: 0,
     });
     await expect(requireUser()).resolves.toEqual({
       id: "u1",
       name: "Fresh Name",
       email: "j@x.com",
+      tokenVersion: 0,
     });
   });
 
+  it("cuts off a member whose token predates a password change (tokenVersion mismatch)", async () => {
+    setCookie(SESSION_COOKIE, await signSession({ id: "u1", name: "J", email: "j@x.com", tokenVersion: 0 }));
+    prisma.user.findUnique.mockResolvedValueOnce({
+      id: "u1",
+      name: "J",
+      email: "j@x.com",
+      status: "ACTIVE",
+      tokenVersion: 1, // bumped by a reset/change since this token was issued
+    });
+    await expect(requireUser()).rejects.toThrow("REDIRECT:/session/blocked");
+  });
+
   it("cuts off a suspended member to /session/blocked", async () => {
-    setCookie(SESSION_COOKIE, await signSession({ id: "u1", name: "J", email: "j@x.com" }));
+    setCookie(SESSION_COOKIE, await signSession({ id: "u1", name: "J", email: "j@x.com", tokenVersion: 0 }));
     prisma.user.findUnique.mockResolvedValueOnce({
       id: "u1",
       name: "J",
@@ -73,7 +87,7 @@ describe("requireUser (fresh status re-check)", () => {
   });
 
   it("cuts off a member whose row was deleted", async () => {
-    setCookie(SESSION_COOKIE, await signSession({ id: "u1", name: "J", email: "j@x.com" }));
+    setCookie(SESSION_COOKIE, await signSession({ id: "u1", name: "J", email: "j@x.com", tokenVersion: 0 }));
     prisma.user.findUnique.mockResolvedValueOnce(null);
     await expect(requireUser()).rejects.toThrow("REDIRECT:/session/blocked");
   });
@@ -141,7 +155,7 @@ describe("getCurrentUser / getCurrentAdmin", () => {
 
 describe("session cookie helpers", () => {
   it("createSession sets the member cookie with a signed token", async () => {
-    await createSession({ id: "u1", name: "J", email: "j@x.com" });
+    await createSession({ id: "u1", name: "J", email: "j@x.com", tokenVersion: 0 });
     expect(store.set).toHaveBeenCalledWith(
       SESSION_COOKIE,
       expect.any(String),

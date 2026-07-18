@@ -63,12 +63,15 @@ export async function requireUser(redirectTo = "/login"): Promise<SessionUser> {
 
   const user = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { id: true, name: true, email: true, status: true },
+    select: { id: true, name: true, email: true, status: true, tokenVersion: true },
   });
-  if (!user || user.status !== "ACTIVE") {
+  // Cut off if the account is no longer ACTIVE, or if the token predates a
+  // password change/reset (tokenVersion mismatch) — the latter is what makes a
+  // reset actually invalidate stolen/older sessions.
+  if (!user || user.status !== "ACTIVE" || user.tokenVersion !== session.tokenVersion) {
     redirect("/session/blocked");
   }
-  return { id: user.id, name: user.name, email: user.email };
+  return { id: user.id, name: user.name, email: user.email, tokenVersion: user.tokenVersion };
 }
 
 /* -------------------------------------------------------------------------- */

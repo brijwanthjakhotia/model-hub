@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { Trash2 } from "lucide-react";
 import { requireSuperAdmin } from "@/lib/auth";
-import { deleteAdminAction } from "@/actions/admins";
 import { prisma } from "@/lib/prisma";
 import { CreateAdminForm } from "@/components/admin/create-admin-form";
+import { AdminDeleteButton } from "@/components/admin/admin-delete-button";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ADMIN_ROLE_META } from "@/lib/constants";
@@ -57,17 +56,7 @@ export default async function AdminsPage() {
                   both for crafted requests.) */}
               {admin.id !== current.id &&
                 !(admin.role === "SUPER_ADMIN" && superAdminCount <= 1) && (
-                  <form action={deleteAdminAction}>
-                    <input type="hidden" name="adminId" value={admin.id} />
-                    <button
-                      type="submit"
-                      title={`Remove ${admin.name}`}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remove {admin.name}</span>
-                    </button>
-                  </form>
+                  <AdminDeleteButton adminId={admin.id} name={admin.name} />
                 )}
             </li>
           ))}

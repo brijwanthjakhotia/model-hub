@@ -40,6 +40,27 @@ export function rateLimit(
   return { ok: true, retryAfterSec: 0 };
 }
 
+/**
+ * Read a bucket WITHOUT incrementing it. Lets a caller gate on the current
+ * count and then only `rateLimit()` (increment) on outcomes worth counting —
+ * e.g. count only *failed* logins, so a legitimate sign-in never consumes the
+ * budget (and can't be used to lock the account's owner out).
+ */
+export function peekRateLimit(
+  key: string,
+  limit: number,
+  now: number = Date.now(),
+): RateLimitResult {
+  const bucket = buckets.get(key);
+  if (!bucket || bucket.resetAt <= now || bucket.count < limit) {
+    return { ok: true, retryAfterSec: 0 };
+  }
+  return {
+    ok: false,
+    retryAfterSec: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)),
+  };
+}
+
 /** Bound memory: drop expired entries, then oldest-first if still over the cap. */
 function evict(now: number) {
   if (buckets.size <= MAX_BUCKETS) return;

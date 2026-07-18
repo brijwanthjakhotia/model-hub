@@ -13,7 +13,7 @@ let modCookie: string;
 let superCookie: string;
 
 beforeAll(async () => {
-  memberCookie = await signSession({ id: "u1", name: "Jordan", email: "u@x.com" });
+  memberCookie = await signSession({ id: "u1", name: "Jordan", email: "u@x.com", tokenVersion: 0 });
   modCookie = await signAdminSession({ id: "a1", name: "Mod", email: "m@x.com", role: "MODERATOR" });
   superCookie = await signAdminSession({ id: "a2", name: "Owner", email: "s@x.com", role: "SUPER_ADMIN" });
 });
@@ -69,6 +69,17 @@ describe("middleware", () => {
     expect(redirectPath(await middleware(makeReq("/dashboard")))).toBe(
       "/login?next=%2Fdashboard",
     );
+  });
+
+  it("gates /account for unauthenticated members", async () => {
+    expect(redirectPath(await middleware(makeReq("/account")))).toBe(
+      "/login?next=%2Faccount",
+    );
+  });
+
+  it("lets a signed-in member into /account", async () => {
+    const res = await middleware(makeReq("/account", { [SESSION_COOKIE]: memberCookie }));
+    expect(redirectPath(res)).toBeNull();
   });
 
   it("lets a signed-in member into a member area", async () => {

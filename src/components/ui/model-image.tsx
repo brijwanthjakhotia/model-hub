@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { cn, gradientFromString, initials } from "@/lib/utils";
 
@@ -24,6 +24,11 @@ export function ModelImage({
   const [failed, setFailed] = useState(false);
   const showImage = src && !failed;
 
+  // Reset the failed flag when the src changes — otherwise, in a reused instance
+  // (e.g. the gallery viewer swapping slides), one broken image would force the
+  // fallback for every subsequent image too.
+  useEffect(() => setFailed(false), [src]);
+
   return (
     <div
       className={cn("relative h-full w-full overflow-hidden", className)}
@@ -37,6 +42,12 @@ export function ModelImage({
           sizes={sizes ?? "(max-width: 768px) 50vw, 25vw"}
           className="object-cover"
           priority={priority}
+          // Skip the Next optimizer for these images: they come from arbitrary,
+          // user-supplied hosts, and the optimizer hard-errors (500 in dev) on
+          // any host not in next.config remotePatterns. unoptimized renders a
+          // plain <img>, so an unknown/broken host degrades to onError instead
+          // of crashing the page (e.g. the admin approval queue).
+          unoptimized
           onError={() => setFailed(true)}
         />
       ) : (

@@ -12,8 +12,8 @@ import {
 } from "@/lib/auth";
 import { loginSchema, registerSchema } from "@/lib/validations";
 import { safeRedirect } from "@/lib/utils";
-import { statusLoginMessage } from "@/lib/auth-messages";
-import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { statusLoginMessage, tooManyMsg } from "@/lib/auth-messages";
+import { rateLimit, peekRateLimit, clientIp } from "@/lib/rate-limit";
 
 export type AuthState = {
   error?: string;
@@ -21,11 +21,6 @@ export type AuthState = {
   fieldErrors?: Record<string, string[]>;
   values?: Record<string, string>;
 };
-
-function tooManyMsg(retryAfterSec: number): string {
-  const mins = Math.max(1, Math.ceil(retryAfterSec / 60));
-  return `Too many attempts. Please try again in about ${mins} minute${mins === 1 ? "" : "s"}.`;
-}
 
 export async function registerAction(
   _prev: AuthState,
@@ -94,21 +89,31 @@ export async function loginAction(
     };
   }
 
-  // Per-account cap first: keyed on the email, so it can't be sidestepped by
-  // rotating a (spoofable) IP. Then a coarser per-IP cap for spray attacks —
-  // only when we have a trustworthy IP, so it can't be turned into a global
-  // lockout.
-  const loginByAcct = rateLimit(`login:acct:${parsed.data.email}`, 10, 15 * 60 * 1000);
-  if (!loginByAcct.ok) {
-    return { error: tooManyMsg(loginByAcct.retryAfterSec), values: { email: raw.email } };
+  // Gate on FAILED-attempt counts (peek, no increment). Only failures below are
+  // counted, so a member's own successful sign-ins never consume the budget and
+  // can't be used to lock them out. Per-account first (email key, can't be
+  // sidestepped by rotating a spoofable IP); per-IP only with a trusted proxy.
+  const acctKey = `login:acct:${parsed.data.email}`;
+  const acctGate = peekRateLimit(acctKey, 10);
+  if (!acctGate.ok) {
+    return { error: tooManyMsg(acctGate.retryAfterSec), values: { email: raw.email } };
   }
   const ip = await clientIp();
-  if (ip) {
-    const loginByIp = rateLimit(`login:ip:${ip}`, 50, 15 * 60 * 1000);
-    if (!loginByIp.ok) {
-      return { error: tooManyMsg(loginByIp.retryAfterSec), values: { email: raw.email } };
+  const ipKey = ip ? `login:ip:${ip}` : null;
+  if (ipKey) {
+    const ipGate = peekRateLimit(ipKey, 50);
+    if (!ipGate.ok) {
+      return { error: tooManyMsg(ipGate.retryAfterSec), values: { email: raw.email } };
     }
   }
+
+  // Count a failed attempt (creates/extends the window). Successful logins never
+  // call this, so they don't consume the lockout budget.
+  const countFailure = () => {
+    rateLimit(acctKey, 10, 15 * 60 * 1000);
+    if (ipKey) rateLimit(ipKey, 50, 15 * 60 * 1000);
+  };
+  const invalid = { error: "Invalid email or password.", values: { email: raw.email } };
 
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
@@ -117,14 +122,17 @@ export async function loginAction(
   // latency doesn't reveal whether an account exists.
   if (!user) {
     await bcrypt.hash(parsed.data.password, 10);
-    return { error: "Invalid email or password.", values: { email: raw.email } };
+    countFailure();
+    return invalid;
   }
   if (!(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
-    return { error: "Invalid email or password.", values: { email: raw.email } };
+    countFailure();
+    return invalid;
   }
 
   // Only ACTIVE members may sign in. Checked after the credential check so the
-  // status is only revealed to whoever actually holds the password.
+  // status is only revealed to whoever actually holds the password. Valid
+  // credentials, so this is not counted as a failed attempt.
   if (user.status !== "ACTIVE") {
     return {
       error: statusLoginMessage(user.status),
@@ -136,6 +144,7 @@ export async function loginAction(
     id: user.id,
     name: user.name,
     email: user.email,
+    tokenVersion: user.tokenVersion,
   });
 
   redirect(safeRedirect(formData.get("next")));
@@ -166,27 +175,39 @@ export async function adminLoginAction(
     };
   }
 
-  const adminByAcct = rateLimit(`admin-login:acct:${parsed.data.email}`, 5, 15 * 60 * 1000);
-  if (!adminByAcct.ok) {
-    return { error: tooManyMsg(adminByAcct.retryAfterSec), values: { email: raw.email } };
+  // Failure-only lockout (see loginAction): peek to gate, count only failures,
+  // so a real admin's successful sign-ins never lock the console.
+  const acctKey = `admin-login:acct:${parsed.data.email}`;
+  const acctGate = peekRateLimit(acctKey, 5);
+  if (!acctGate.ok) {
+    return { error: tooManyMsg(acctGate.retryAfterSec), values: { email: raw.email } };
   }
   const ip = await clientIp();
-  if (ip) {
-    const adminByIp = rateLimit(`admin-login:ip:${ip}`, 30, 15 * 60 * 1000);
-    if (!adminByIp.ok) {
-      return { error: tooManyMsg(adminByIp.retryAfterSec), values: { email: raw.email } };
+  const ipKey = ip ? `admin-login:ip:${ip}` : null;
+  if (ipKey) {
+    const ipGate = peekRateLimit(ipKey, 30);
+    if (!ipGate.ok) {
+      return { error: tooManyMsg(ipGate.retryAfterSec), values: { email: raw.email } };
     }
   }
+
+  const countFailure = () => {
+    rateLimit(acctKey, 5, 15 * 60 * 1000);
+    if (ipKey) rateLimit(ipKey, 30, 15 * 60 * 1000);
+  };
+  const invalid = { error: "Invalid email or password.", values: { email: raw.email } };
 
   const admin = await prisma.admin.findUnique({
     where: { email: parsed.data.email },
   });
   if (!admin) {
     await bcrypt.hash(parsed.data.password, 10); // equalize timing
-    return { error: "Invalid email or password.", values: { email: raw.email } };
+    countFailure();
+    return invalid;
   }
   if (!(await bcrypt.compare(parsed.data.password, admin.passwordHash))) {
-    return { error: "Invalid email or password.", values: { email: raw.email } };
+    countFailure();
+    return invalid;
   }
 
   await createAdminSession({
