@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, requireAdmin } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { modelSchema, reviewDecisionSchema } from "@/lib/validations";
-import { parseGalleryUrls, slugify } from "@/lib/utils";
+import { parseGalleryUrls, safeRedirect, slugify } from "@/lib/utils";
 
 export type ModelFormState = {
   error?: string;
@@ -127,6 +127,15 @@ export async function decideModelAction(formData: FormData) {
   revalidatePath("/models");
   revalidatePath("/");
   revalidatePath(`/models/${slug}`);
+  revalidatePath(`/admin/models/${modelId}`);
+
+  // When the decision came from the full-profile preview, return the admin to a
+  // sensible place (default: the queue). Omitted by the inline queue form, which
+  // just wants the card to drop out via revalidation.
+  const redirectTo = formData.get("redirectTo");
+  if (typeof redirectTo === "string" && redirectTo) {
+    redirect(safeRedirect(redirectTo, "/admin/approvals"));
+  }
 }
 
 export async function toggleFeaturedAction(formData: FormData) {

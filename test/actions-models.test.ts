@@ -129,6 +129,16 @@ describe("decideModelAction", () => {
     expect(arg.data.reviewNote).toBeNull();
   });
 
+  it("redirects to redirectTo after deciding from the preview flow", async () => {
+    prisma.model.update.mockResolvedValueOnce({ slug: "casey-newface" });
+    await expect(
+      decideModelAction(
+        form({ modelId: "m1", decision: "APPROVED", redirectTo: "/admin/approvals" }),
+      ),
+    ).rejects.toThrow("REDIRECT:/admin/approvals");
+    expect(prisma.model.update).toHaveBeenCalledOnce();
+  });
+
   it("throws on an invalid decision", async () => {
     await expect(
       decideModelAction(form({ modelId: "m1", decision: "MAYBE" })),

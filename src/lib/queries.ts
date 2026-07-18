@@ -127,6 +127,23 @@ export const getModelBySlug = cache(async (slug: string) => {
   });
 });
 
+// Full profile for the admin preview — by id, ANY status (so staff can review a
+// PENDING/REJECTED submission before deciding). Admin-gated at the page/route
+// level; never used by public reads.
+export const getModelForAdmin = cache(async (id: string) => {
+  return prisma.model.findUnique({
+    where: { id },
+    include: {
+      reviews: {
+        orderBy: { createdAt: "desc" },
+        include: { author: { select: { id: true, name: true, avatarUrl: true } } },
+      },
+      submittedBy: { select: { id: true, name: true, email: true } },
+      reviewedBy: { select: { name: true } },
+    },
+  });
+});
+
 export async function getCategoryCounts() {
   const grouped = await prisma.model.groupBy({
     by: ["category"],

@@ -44,16 +44,12 @@ export default async function AdminModelsPage() {
                         <ModelImage name={m.name} src={m.headshotUrl} sizes="36px" />
                       </div>
                       <div className="min-w-0">
-                        {m.status === "APPROVED" ? (
-                          <Link
-                            href={`/models/${m.slug}`}
-                            className="font-medium hover:text-accent"
-                          >
-                            {m.name}
-                          </Link>
-                        ) : (
-                          <span className="font-medium">{m.name}</span>
-                        )}
+                        <Link
+                          href={`/admin/models/${m.id}`}
+                          className="font-medium hover:text-accent"
+                        >
+                          {m.name}
+                        </Link>
                         <p className="truncate text-xs text-muted-foreground">
                           {m.location}
                         </p>
