@@ -5,6 +5,7 @@ import { RatingStars } from "@/components/ui/rating-stars";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { PendingButton } from "@/components/ui/pending-button";
 import { Pagination } from "@/components/ui/pagination";
 
 afterEach(cleanup);
@@ -101,6 +102,21 @@ describe("SubmitButton", () => {
   });
 });
 
+describe("PendingButton", () => {
+  it("is a type=submit button rendering its children (idle) with forwarded title/className", () => {
+    render(
+      <PendingButton title="Remove Jordan" className="rounded-lg text-danger" pendingText="Saving…">
+        Delete
+      </PendingButton>,
+    );
+    const btn = screen.getByRole("button", { name: "Delete" });
+    expect(btn).toHaveAttribute("type", "submit");
+    expect(btn).toHaveAttribute("title", "Remove Jordan");
+    expect(btn.className).toContain("rounded-lg");
+    expect(btn).not.toBeDisabled();
+  });
+});
+
 describe("Pagination", () => {
   it("renders nothing when there's a single page", () => {
     const { container } = render(
@@ -114,9 +130,9 @@ describe("Pagination", () => {
     const nav = screen.getByRole("navigation", { name: "Pagination" });
     expect(nav).toBeInTheDocument();
     // current page carries aria-current
-    expect(screen.getByRole("link", { name: "2" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Go to page 2" })).toHaveAttribute("aria-current", "page");
     // page-3 link points at ?page=3
-    expect(screen.getByRole("link", { name: "3" })).toHaveAttribute("href", "/models?page=3");
+    expect(screen.getByRole("link", { name: "Go to page 3" })).toHaveAttribute("href", "/models?page=3");
   });
 
   it("preserves other params and omits page=1 in hrefs", () => {
@@ -130,8 +146,11 @@ describe("Pagination", () => {
       />,
     );
     // page 1 link keeps the filter but drops ?page
-    expect(screen.getByRole("link", { name: "1" })).toHaveAttribute("href", "/models?category=Runway");
-    expect(screen.getByRole("link", { name: "3" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Go to page 1" })).toHaveAttribute(
+      "href",
+      "/models?category=Runway",
+    );
+    expect(screen.getByRole("link", { name: "Go to page 3" })).toHaveAttribute(
       "href",
       "/models?category=Runway&page=3",
     );

@@ -109,7 +109,7 @@ export async function addReviewAction(
     // request and surface as a unique-constraint violation on (modelId,
     // authorId). The review was saved either way — treat as success.
     if (isUniqueViolation(e)) {
-      revalidatePath(`/models/${model.slug}`);
+      revalidateReviewPaths(model.slug);
       return { success: true };
     }
     // The model can be deleted between the check above and this write; the FK
@@ -120,6 +120,14 @@ export async function addReviewAction(
     throw e;
   }
 
-  revalidatePath(`/models/${model.slug}`);
+  revalidateReviewPaths(model.slug);
   return { success: true };
+}
+
+/** A new/edited review changes ratingAvg/ratingCount, which drive the profile,
+ *  the gallery cards + top-rated sort, and the landing featured/stats. */
+function revalidateReviewPaths(slug: string) {
+  revalidatePath(`/models/${slug}`);
+  revalidatePath("/models");
+  revalidatePath("/");
 }

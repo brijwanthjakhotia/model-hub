@@ -2,27 +2,34 @@ import type { Metadata } from "next";
 import { CheckCircle2 } from "lucide-react";
 import { ApprovalCard } from "@/components/admin/approval-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getPendingModels } from "@/lib/queries";
+import { Pagination } from "@/components/ui/pagination";
+import { getPendingModels, ADMIN_PAGE_SIZE, toPage } from "@/lib/queries";
 import { requireAdmin } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Approvals" };
 
-export default async function ApprovalsPage() {
+export default async function ApprovalsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   // Re-check at the page level: the (console) layout guard doesn't re-run on
   // soft client-side navigations, so a just-deleted admin must be cut off here.
   await requireAdmin();
-  const pending = await getPendingModels();
+  const sp = await searchParams;
+  const page = toPage(Array.isArray(sp.page) ? sp.page[0] : sp.page);
+  const { items: pending, total } = await getPendingModels(page);
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-semibold">
           Approval queue{" "}
-          <span className="text-muted-foreground">({pending.length})</span>
+          <span className="text-muted-foreground">({total})</span>
         </h2>
       </div>
 
-      {pending.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           icon={CheckCircle2}
           title="Nothing to review"
@@ -35,6 +42,13 @@ export default async function ApprovalsPage() {
           ))}
         </div>
       )}
+
+      <Pagination
+        basePath="/admin/approvals"
+        page={page}
+        pageSize={ADMIN_PAGE_SIZE}
+        total={total}
+      />
     </div>
   );
 }

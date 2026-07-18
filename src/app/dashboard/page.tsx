@@ -11,7 +11,13 @@ import { ModelImage } from "@/components/ui/model-image";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth";
-import { getUserSubmissions } from "@/lib/queries";
+import {
+  getUserSubmissions,
+  getUserSubmissionCounts,
+  ADMIN_PAGE_SIZE,
+  toPage,
+} from "@/lib/queries";
+import { Pagination } from "@/components/ui/pagination";
 import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "My submissions" };
@@ -24,13 +30,11 @@ export default async function DashboardPage({
   const user = await requireUser();
   const sp = await searchParams;
   const justSubmitted = sp.submitted === "1";
-  const submissions = await getUserSubmissions(user.id);
-
-  const counts = {
-    total: submissions.length,
-    approved: submissions.filter((m) => m.status === "APPROVED").length,
-    pending: submissions.filter((m) => m.status === "PENDING").length,
-  };
+  const page = toPage(Array.isArray(sp.page) ? sp.page[0] : sp.page);
+  const [{ items: submissions, total }, counts] = await Promise.all([
+    getUserSubmissions(user.id, page),
+    getUserSubmissionCounts(user.id), // full-set counts for the stat tiles
+  ]);
 
   return (
     <div className="container max-w-4xl py-10 lg:py-14">
@@ -57,7 +61,7 @@ export default async function DashboardPage({
         </div>
       )}
 
-      {submissions.length > 0 && (
+      {counts.total > 0 && (
         <div className="mt-8 grid grid-cols-3 gap-3">
           <StatTile label="Submitted" value={counts.total} />
           <StatTile label="Approved" value={counts.approved} />
@@ -66,7 +70,7 @@ export default async function DashboardPage({
       )}
 
       <div className="mt-8">
-        {submissions.length === 0 ? (
+        {counts.total === 0 ? (
           <EmptyState
             icon={FolderPlus}
             title="No submissions yet"
@@ -126,6 +130,13 @@ export default async function DashboardPage({
           </ul>
         )}
       </div>
+
+      <Pagination
+        basePath="/dashboard"
+        page={page}
+        pageSize={ADMIN_PAGE_SIZE}
+        total={total}
+      />
     </div>
   );
 }

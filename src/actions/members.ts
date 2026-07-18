@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { userStatusSchema } from "@/lib/validations";
+import { isNotFound } from "@/lib/prisma-errors";
 
 /** Change a member's account status (any admin). */
 export async function updateMemberStatusAction(formData: FormData) {
@@ -24,7 +24,7 @@ export async function updateMemberStatusAction(formData: FormData) {
       data: { status: parsed.data.status },
     });
   } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+    if (isNotFound(e)) {
       throw new Error("That member no longer exists.");
     }
     throw e;

@@ -74,6 +74,8 @@ export async function createModelAction(
 
   revalidatePath("/dashboard");
   revalidatePath("/admin/approvals");
+  revalidatePath("/admin/models"); // roster lists all statuses incl. PENDING
+  revalidatePath("/admin"); // overview pending count
   redirect("/dashboard?submitted=1");
 }
 

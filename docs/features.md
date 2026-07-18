@@ -16,10 +16,14 @@ End-to-end walkthroughs of each feature, with the routes and files involved.
   shareable and bookmarkable. The search box is debounced (350 ms) and updates
   the URL with `router.replace`; the server component re-queries and re-renders.
 - Empty results show a friendly `EmptyState` with a reset link.
+- **Paginated** at 12 profiles/page via a `?page=` param (a shared `<Pagination>`
+  preserves active filters; changing a filter resets to page 1). The admin roster,
+  members list, approvals queue and dashboard are paginated the same way (20/page).
 
-Query building happens in `getApprovedModels(filters)`, which composes a Prisma
-`where` clause (search across name/location/bio/category) and an `orderBy` from
-the sort option.
+Query building happens in `getApprovedModels(filters, page)`, which composes a
+Prisma `where` clause (search across name/location/bio/category) and an `orderBy`
+from the sort option, returning `{ items, total }` (page clamped to the last
+real page).
 
 ## 2. Model profile
 
