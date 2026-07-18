@@ -18,6 +18,7 @@ export function ProfileGallery({
   const [lightbox, setLightbox] = useState(false);
   const expandRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const go = (dir: number) =>
     setActive((i) => (i + dir + slides.length) % slides.length);
@@ -30,15 +31,36 @@ export function ProfileGallery({
 
   useEffect(() => {
     if (!lightbox) return;
-    // Move focus into the dialog on open.
+    // Move focus into the dialog on open, and lock background scroll.
     closeRef.current?.focus();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeLightbox();
-      if (e.key === "ArrowRight") go(1);
-      if (e.key === "ArrowLeft") go(-1);
+      else if (e.key === "ArrowRight") go(1);
+      else if (e.key === "ArrowLeft") go(-1);
+      else if (e.key === "Tab" && dialogRef.current) {
+        // Trap Tab within the dialog.
+        const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lightbox, slides.length]);
 
@@ -92,6 +114,7 @@ export function ProfileGallery({
       {/* Lightbox */}
       {lightbox && (
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-label={`${name} — image viewer`}

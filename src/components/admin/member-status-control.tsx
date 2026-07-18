@@ -1,26 +1,13 @@
 "use client";
 
-import { useFormStatus } from "react-dom";
 import { updateMemberStatusAction } from "@/actions/members";
 import { Select } from "@/components/ui/field";
+import { PendingButton } from "@/components/ui/pending-button";
 import {
   USER_STATUSES,
   USER_STATUS_META,
   type UserStatusValue,
 } from "@/lib/constants";
-
-function UpdateButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
-    >
-      {pending ? "Saving…" : "Update"}
-    </button>
-  );
-}
 
 /**
  * Status picker for a member row. Applying is an explicit button press — we do
@@ -49,7 +36,12 @@ export function MemberStatusControl({
           </option>
         ))}
       </Select>
-      <UpdateButton />
+      <PendingButton
+        pendingText="Saving…"
+        className="rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted"
+      >
+        Update
+      </PendingButton>
     </form>
   );
 }

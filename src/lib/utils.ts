@@ -40,7 +40,7 @@ export function timeAgo(date: Date | string) {
     [Number.POSITIVE_INFINITY, "year"],
   ];
   const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-  let duration = seconds;
+  const duration = seconds;
   let divisor = 1;
   let unit: Intl.RelativeTimeFormatUnit = "second";
   for (const [amount, u] of units) {

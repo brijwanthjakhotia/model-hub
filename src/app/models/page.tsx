@@ -5,7 +5,8 @@ import { GalleryFiltersBar } from "@/components/models/filters";
 import { ModelCard } from "@/components/models/model-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button";
-import { getApprovedModels } from "@/lib/queries";
+import { getApprovedModels, GALLERY_PAGE_SIZE, toPage } from "@/lib/queries";
+import { Pagination } from "@/components/ui/pagination";
 import { pluralize } from "@/lib/utils";
 import { SORT_OPTIONS, type SortOption } from "@/lib/constants";
 
@@ -37,8 +38,9 @@ export default async function ModelsPage({
     experience: first(sp.experience),
     sort,
   };
+  const page = toPage(first(sp.page));
 
-  const models = await getApprovedModels(filters);
+  const { items: models, total } = await getApprovedModels(filters, page);
 
   return (
     <div className="container py-10 lg:py-14">
@@ -46,7 +48,7 @@ export default async function ModelsPage({
         <span className="eyebrow">The roster</span>
         <h1 className="mt-2 text-4xl font-semibold">Talent gallery</h1>
         <p className="mt-2 text-muted-foreground">
-          {models.length} {pluralize(models.length, "profile")}
+          {total} {pluralize(total, "profile")}
           {filters.category ? ` in ${filters.category}` : ""}
           {filters.q ? ` matching “${filters.q}”` : ""}
         </p>
@@ -76,6 +78,20 @@ export default async function ModelsPage({
           </div>
         )}
       </div>
+
+      <Pagination
+        basePath="/models"
+        page={page}
+        pageSize={GALLERY_PAGE_SIZE}
+        total={total}
+        params={{
+          q: filters.q,
+          category: filters.category,
+          gender: filters.gender,
+          experience: filters.experience,
+          sort: rawSort,
+        }}
+      />
     </div>
   );
 }

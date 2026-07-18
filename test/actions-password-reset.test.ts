@@ -198,4 +198,14 @@ describe("resetPasswordAction", () => {
     expect(state.fieldErrors?.confirmPassword?.[0]).toMatch(/do not match/i);
     expect(prisma.passwordResetToken.findUnique).not.toHaveBeenCalled();
   });
+
+  it("rate-limits reset submissions per IP (no token lookup when tripped)", async () => {
+    rateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 3600 });
+    const state = await resetPasswordAction(
+      {},
+      form({ token: "raw-token", password: "brandnew1", confirmPassword: "brandnew1" }),
+    );
+    expect(state.error).toMatch(/too many/i);
+    expect(prisma.passwordResetToken.findUnique).not.toHaveBeenCalled();
+  });
 });

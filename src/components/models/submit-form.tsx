@@ -1,10 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import { UploadCloud } from "lucide-react";
 import { createModelAction, type ModelFormState } from "@/actions/models";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import {
@@ -171,7 +170,10 @@ export function SubmitModelForm() {
       <FormMessage>{state.error}</FormMessage>
 
       <div className="flex items-center gap-3 border-t border-border pt-6">
-        <SubmitButton />
+        <SubmitButton pendingText="Submitting…" size="lg">
+        <UploadCloud className="h-4 w-4" />
+        Submit for review
+      </SubmitButton>
         <p className="text-sm text-muted-foreground">
           Submissions are reviewed by an admin before going live.
         </p>
@@ -180,12 +182,3 @@ export function SubmitModelForm() {
   );
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" size="lg" disabled={pending}>
-      <UploadCloud className="h-4 w-4" />
-      {pending ? "Submitting…" : "Submit for review"}
-    </Button>
-  );
-}

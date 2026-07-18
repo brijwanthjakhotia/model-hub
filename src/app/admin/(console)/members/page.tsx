@@ -1,19 +1,30 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
-import { getMembers } from "@/lib/queries";
+import { getMembers, getAdminStats, ADMIN_PAGE_SIZE, toPage } from "@/lib/queries";
 import { MemberStatusControl } from "@/components/admin/member-status-control";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { USER_STATUS_META } from "@/lib/constants";
 import { timeAgo } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Members" };
 
-export default async function MembersPage() {
+export default async function MembersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireAdmin();
-  const members = await getMembers();
-  const pending = members.filter((m) => m.status === "PENDING").length;
+  const sp = await searchParams;
+  const page = toPage(Array.isArray(sp.page) ? sp.page[0] : sp.page);
+  // Pending count comes from the full-table stats, not the current page.
+  const [{ items: members, total }, stats] = await Promise.all([
+    getMembers(page),
+    getAdminStats(),
+  ]);
+  const pending = stats.pendingMembers;
 
   return (
     <div className="space-y-5">
@@ -57,6 +68,13 @@ export default async function MembersPage() {
           })}
         </ul>
       )}
+
+      <Pagination
+        basePath="/admin/members"
+        page={page}
+        pageSize={ADMIN_PAGE_SIZE}
+        total={total}
+      />
     </div>
   );
 }

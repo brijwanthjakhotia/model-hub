@@ -43,12 +43,16 @@ test/
 ├── stubs/server-only.ts           # no-op stub for the `server-only` package
 ├── utils.test.ts                  # pure helpers
 ├── validations.test.ts            # Zod schemas
+├── validations-account.test.ts    # profile / password / forgot / reset schemas
 ├── session.test.ts                # JWT sign/verify (real jose crypto)
 ├── auth-messages.test.ts          # status → login-message mapping
+├── mailer.test.ts                 # SMTP vs console fallback, getBaseUrl
 ├── rate-limit.test.ts             # window/eviction logic + clientIp trust
-├── auth-guards.test.ts            # requireUser/requireAdmin/requireSuperAdmin
+├── auth-guards.test.ts            # requireUser/requireAdmin (+ tokenVersion)
 ├── middleware.test.ts             # route gating (real tokens)
-├── actions-auth.test.ts           # register / login / admin-login
+├── actions-auth.test.ts           # register / login / logout / admin-login
+├── actions-account.test.ts        # update profile / change password
+├── actions-password-reset.test.ts # request + complete reset (single-use)
 ├── actions-admins.test.ts         # create / delete admin
 ├── actions-members.test.ts        # member status changes
 ├── actions-models.test.ts         # create / decide / feature / delete

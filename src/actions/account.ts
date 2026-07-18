@@ -1,13 +1,13 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser, createSession } from "@/lib/auth";
 import { updateProfileSchema, changePasswordSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { tooManyMsg } from "@/lib/auth-messages";
+import { isUniqueViolation } from "@/lib/prisma-errors";
 import type { AuthState } from "@/actions/auth";
 
 /**
@@ -66,7 +66,7 @@ export async function updateProfileAction(
   } catch (e) {
     // A logged-in member editing their own account: surface the email clash
     // directly (they already know their own account exists).
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    if (isUniqueViolation(e)) {
       return {
         fieldErrors: { email: ["That email is already in use."] },
         values: raw,
@@ -126,17 +126,18 @@ export async function changePasswordAction(
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
-  // Bump tokenVersion to invalidate every other outstanding session; re-issue
-  // THIS session below so the current device stays signed in.
-  const updated = await prisma.user.update({
-    where: { id: user.id },
-    data: { passwordHash, tokenVersion: { increment: 1 } },
-    select: { tokenVersion: true },
-  });
-
-  // Belt-and-braces: invalidate any outstanding password-reset tokens now that
-  // the password has changed by other means.
-  await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+  // Atomically: set the new hash, bump tokenVersion (invalidates every other
+  // outstanding session), and clear any outstanding reset tokens — so the
+  // invalidation can never be left half-applied. This session is re-issued
+  // below with the new tokenVersion so the current device stays signed in.
+  const [updated] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+      select: { tokenVersion: true },
+    }),
+    prisma.passwordResetToken.deleteMany({ where: { userId: user.id } }),
+  ]);
 
   await createSession({
     id: user.id,

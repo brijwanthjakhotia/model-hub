@@ -1,9 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import { adminLoginAction, type AuthState } from "@/actions/auth";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Field, Input } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 
@@ -46,16 +45,10 @@ export function AdminLoginForm({ next }: { next: string }) {
 
       <FormMessage>{state.error}</FormMessage>
 
-      <SubmitButton />
+      <SubmitButton pendingText="Signing in…" className="w-full">
+        Sign in to console
+      </SubmitButton>
     </form>
   );
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Signing in…" : "Sign in to console"}
-    </Button>
-  );
-}

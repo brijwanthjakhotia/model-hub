@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { hdrs } = vi.hoisted(() => ({ hdrs: { value: new Headers() } }));
 vi.mock("next/headers", () => ({ headers: async () => hdrs.value }));
 
-import { rateLimit, clientIp, __resetRateLimit } from "@/lib/rate-limit";
+import { rateLimit, peekRateLimit, clientIp, __resetRateLimit } from "@/lib/rate-limit";
 
 beforeEach(() => {
   __resetRateLimit();
@@ -43,6 +43,32 @@ describe("rateLimit", () => {
     for (let i = 0; i < 20_050; i++) rateLimit(`flood:${i}`, 1, 60_000, 1);
     // Doesn't throw and still serves fresh keys.
     expect(rateLimit("flood:fresh", 1, 60_000, 1).ok).toBe(true);
+  });
+});
+
+describe("peekRateLimit", () => {
+  it("returns ok when under the limit and does NOT increment the bucket", () => {
+    rateLimit("p", 3, 1000, 0); // count = 1
+    // Many peeks must not consume the budget.
+    for (let i = 0; i < 10; i++) expect(peekRateLimit("p", 3, 0).ok).toBe(true);
+    // Still only 1 real hit recorded → two more rateLimit calls remain allowed.
+    expect(rateLimit("p", 3, 1000, 0).ok).toBe(true); // 2
+    expect(rateLimit("p", 3, 1000, 0).ok).toBe(true); // 3
+    expect(rateLimit("p", 3, 1000, 0).ok).toBe(false); // 4 → over
+  });
+
+  it("blocks at/over the limit with a positive retryAfterSec", () => {
+    for (let i = 0; i < 3; i++) rateLimit("q", 3, 10_000, 0); // count = 3 (== limit)
+    const gate = peekRateLimit("q", 3, 0);
+    expect(gate.ok).toBe(false);
+    expect(gate.retryAfterSec).toBeGreaterThanOrEqual(1);
+  });
+
+  it("treats an unknown or expired bucket as ok", () => {
+    expect(peekRateLimit("never-seen", 1, 0).ok).toBe(true);
+    rateLimit("exp", 1, 1000, 0); // over after this
+    expect(peekRateLimit("exp", 1, 500).ok).toBe(false); // still in window
+    expect(peekRateLimit("exp", 1, 1000).ok).toBe(true); // window rolled over
   });
 });
 

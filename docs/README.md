@@ -22,7 +22,7 @@ start, see the root [README](../README.md).
 - **Database:** SQLite via Prisma ORM
 - **Auth:** `jose` JWT sessions in httpOnly cookies + `bcryptjs`
 - **Validation:** Zod
-- **Testing:** Vitest + Testing Library (150+ tests; lib + server actions + middleware, ~95% line coverage)
+- **Testing:** Vitest + Testing Library (200+ tests; lib + server actions + middleware, ~96% line coverage)
 
 ## Principals & roles
 

@@ -10,6 +10,8 @@ const { requireUser, createSession, revalidatePath, rateLimit, prisma } = vi.hoi
   prisma: {
     user: { findUnique: vi.fn(), update: vi.fn() },
     passwordResetToken: { deleteMany: vi.fn() },
+    // array-form transaction: resolve the built operations
+    $transaction: vi.fn(async (ops: unknown[]) => Promise.all(ops)),
   },
 }));
 
@@ -120,6 +122,16 @@ describe("updateProfileAction", () => {
     expect(state.fieldErrors).toBeTruthy();
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
+
+  it("reports an expired session if the account vanished during an email change", async () => {
+    prisma.user.findUnique.mockResolvedValueOnce(null); // row gone
+    const state = await updateProfileAction(
+      {},
+      form({ name: "Jordan", email: "new@example.com", avatarUrl: "", currentPassword: "secret1" }),
+    );
+    expect(state.error).toMatch(/session has expired/i);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("changePasswordAction", () => {
@@ -180,5 +192,15 @@ describe("changePasswordAction", () => {
     );
     expect(state.error).toMatch(/too many/i);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("reports an expired session if the account row is gone", async () => {
+    prisma.user.findUnique.mockResolvedValueOnce(null);
+    const state = await changePasswordAction(
+      {},
+      form({ currentPassword: "realpass1", newPassword: "brandnew1", confirmPassword: "brandnew1" }),
+    );
+    expect(state.error).toMatch(/session has expired/i);
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

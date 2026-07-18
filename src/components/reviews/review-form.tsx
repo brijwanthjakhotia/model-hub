@@ -1,10 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useActionState, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import { addReviewAction, type ReviewState } from "@/actions/reviews";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Field, FieldError, Input, Textarea } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { cn } from "@/lib/utils";
@@ -15,6 +14,20 @@ export function ReviewForm({ modelId }: { modelId: string }) {
   const [state, formAction] = useActionState(addReviewAction, initial);
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
+  const starRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Radiogroup keyboard contract: arrows move + commit the selection.
+  function onStarKeyDown(e: React.KeyboardEvent, n: number) {
+    let next = 0;
+    // From the empty state (focus on star 1), an arrow commits the focused star
+    // rather than skipping; thereafter it steps within 1..5.
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") next = rating === 0 ? n : Math.min(5, rating + 1);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = rating === 0 ? n : Math.max(1, rating - 1);
+    else return;
+    e.preventDefault();
+    setRating(next);
+    starRefs.current[next - 1]?.focus();
+  }
 
   if (state.success) {
     return (
@@ -55,10 +68,15 @@ export function ReviewForm({ modelId }: { modelId: string }) {
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
+              ref={(el) => {
+                starRefs.current[n - 1] = el;
+              }}
               type="button"
               role="radio"
               aria-checked={n === rating}
+              tabIndex={rating === n || (rating === 0 && n === 1) ? 0 : -1}
               onClick={() => setRating(n)}
+              onKeyDown={(e) => onStarKeyDown(e, n)}
               onMouseEnter={() => setHover(n)}
               onMouseLeave={() => setHover(0)}
               className="rounded p-0.5 focus-ring"
@@ -103,16 +121,10 @@ export function ReviewForm({ modelId }: { modelId: string }) {
 
       <FormMessage>{state.error}</FormMessage>
 
-      <SubmitButton />
+      <SubmitButton pendingText="Publishing…" className="w-full sm:w-auto">
+        Publish review
+      </SubmitButton>
     </form>
   );
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-      {pending ? "Publishing…" : "Publish review"}
-    </Button>
-  );
-}

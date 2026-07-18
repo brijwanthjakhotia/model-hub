@@ -6,6 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { reviewSchema } from "@/lib/validations";
+import {
+  isUniqueViolation,
+  isForeignKeyViolation,
+  isNotFound,
+} from "@/lib/prisma-errors";
 
 export type ReviewState = {
   error?: string;
@@ -100,19 +105,17 @@ export async function addReviewAction(
       await recomputeRating(tx, model.id);
     });
   } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError) {
-      // A racing double-submit can lose the upsert's find-then-insert to the
-      // other request and surface as a unique-constraint violation on
-      // (modelId, authorId). The review was saved either way — treat as success.
-      if (e.code === "P2002") {
-        revalidatePath(`/models/${model.slug}`);
-        return { success: true };
-      }
-      // The model can be deleted between the check above and this write; the FK
-      // violation (or a missing row) becomes the same friendly message.
-      if (e.code === "P2003" || e.code === "P2025") {
-        return { error: "This profile is not available for reviews." };
-      }
+    // A racing double-submit can lose the upsert's find-then-insert to the other
+    // request and surface as a unique-constraint violation on (modelId,
+    // authorId). The review was saved either way — treat as success.
+    if (isUniqueViolation(e)) {
+      revalidatePath(`/models/${model.slug}`);
+      return { success: true };
+    }
+    // The model can be deleted between the check above and this write; the FK
+    // violation (or a missing row) becomes the same friendly message.
+    if (isForeignKeyViolation(e) || isNotFound(e)) {
+      return { error: "This profile is not available for reviews." };
     }
     throw e;
   }

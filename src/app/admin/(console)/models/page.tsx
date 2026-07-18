@@ -1,24 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getAllModelsForAdmin } from "@/lib/queries";
+import { getAllModelsForAdmin, ADMIN_PAGE_SIZE, toPage } from "@/lib/queries";
 import { ModelImage } from "@/components/ui/model-image";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ModelRowActions } from "@/components/admin/model-row-actions";
+import { Pagination } from "@/components/ui/pagination";
 import { formatDate } from "@/lib/utils";
 import { requireAdmin } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Manage talent" };
 
-export default async function AdminModelsPage() {
+export default async function AdminModelsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   // Page-level re-check (the layout guard doesn't re-run on soft navigations).
   await requireAdmin();
-  const models = await getAllModelsForAdmin();
+  const sp = await searchParams;
+  const page = toPage(Array.isArray(sp.page) ? sp.page[0] : sp.page);
+  const { items: models, total } = await getAllModelsForAdmin(page);
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-semibold">
-          All talent <span className="text-muted-foreground">({models.length})</span>
+          All talent <span className="text-muted-foreground">({total})</span>
         </h2>
       </div>
 
@@ -80,6 +87,13 @@ export default async function AdminModelsPage() {
           </table>
         </div>
       </div>
+
+      <Pagination
+        basePath="/admin/models"
+        page={page}
+        pageSize={ADMIN_PAGE_SIZE}
+        total={total}
+      />
     </div>
   );
 }

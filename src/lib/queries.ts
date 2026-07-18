@@ -74,7 +74,21 @@ function buildOrderBy(
   }
 }
 
-export async function getApprovedModels(filters: GalleryFilters = {}) {
+export const GALLERY_PAGE_SIZE = 12;
+export const ADMIN_PAGE_SIZE = 20;
+
+/** Clamp a raw page value to a positive integer. */
+export function toPage(raw: unknown): number {
+  const n = Math.trunc(Number(raw));
+  return Number.isFinite(n) && n > 1 ? n : 1;
+}
+
+export type Paginated<T> = { items: T[]; total: number };
+
+export async function getApprovedModels(
+  filters: GalleryFilters = {},
+  page = 1,
+) {
   const where: Prisma.ModelWhereInput = { status: "APPROVED" };
 
   if (filters.q) {
@@ -93,11 +107,17 @@ export async function getApprovedModels(filters: GalleryFilters = {}) {
   }
   if (filters.experience) where.experience = filters.experience;
 
-  return prisma.model.findMany({
-    where,
-    orderBy: buildOrderBy(filters.sort),
-    select: cardSelect,
-  });
+  const [items, total] = await prisma.$transaction([
+    prisma.model.findMany({
+      where,
+      orderBy: buildOrderBy(filters.sort),
+      select: cardSelect,
+      take: GALLERY_PAGE_SIZE,
+      skip: (page - 1) * GALLERY_PAGE_SIZE,
+    }),
+    prisma.model.count({ where }),
+  ]);
+  return { items, total };
 }
 
 export async function getFeaturedModels(take = 3) {
@@ -120,6 +140,9 @@ export const getModelBySlug = cache(async (slug: string) => {
     include: {
       reviews: {
         orderBy: { createdAt: "desc" },
+        // Bound the nested read: show the newest reviews (the ratingAvg/ratingCount
+        // cache already drives the summary). A "load more" is a future follow-up.
+        take: 50,
         include: { author: { select: { id: true, name: true, avatarUrl: true } } },
       },
       submittedBy: { select: { id: true, name: true } },
@@ -136,6 +159,9 @@ export const getModelForAdmin = cache(async (id: string) => {
     include: {
       reviews: {
         orderBy: { createdAt: "desc" },
+        // Bound the nested read: show the newest reviews (the ratingAvg/ratingCount
+        // cache already drives the summary). A "load more" is a future follow-up.
+        take: 50,
         include: { author: { select: { id: true, name: true, avatarUrl: true } } },
       },
       submittedBy: { select: { id: true, name: true, email: true } },
@@ -143,6 +169,23 @@ export const getModelForAdmin = cache(async (id: string) => {
     },
   });
 });
+
+/**
+ * Full 1–5 star distribution for a model, aggregated in the DB (independent of
+ * the `take` cap on the reviews list). Returns { [rating]: count } with zeros
+ * omitted; callers render it against the cached ratingCount.
+ */
+export async function getRatingDistribution(modelId: string): Promise<Record<number, number>> {
+  const grouped = await prisma.review.groupBy({
+    by: ["rating"],
+    where: { modelId },
+    _count: { _all: true },
+  });
+  return grouped.reduce<Record<number, number>>((acc, g) => {
+    acc[g.rating] = g._count._all;
+    return acc;
+  }, {});
+}
 
 export async function getCategoryCounts() {
   const grouped = await prisma.model.groupBy({
@@ -178,11 +221,17 @@ export async function getPendingModels() {
   });
 }
 
-export async function getAllModelsForAdmin() {
-  return prisma.model.findMany({
-    orderBy: [{ createdAt: "desc" }],
-    select: adminRowSelect,
-  });
+export async function getAllModelsForAdmin(page = 1) {
+  const [items, total] = await prisma.$transaction([
+    prisma.model.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      select: adminRowSelect,
+      take: ADMIN_PAGE_SIZE,
+      skip: (page - 1) * ADMIN_PAGE_SIZE,
+    }),
+    prisma.model.count(),
+  ]);
+  return { items, total };
 }
 
 export async function getUserSubmissions(userId: string) {
@@ -193,19 +242,25 @@ export async function getUserSubmissions(userId: string) {
   });
 }
 
-export async function getMembers() {
-  return prisma.user.findMany({
-    orderBy: [{ createdAt: "desc" }],
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      status: true,
-      avatarUrl: true,
-      createdAt: true,
-      _count: { select: { models: true, reviews: true } },
-    },
-  });
+export async function getMembers(page = 1) {
+  const [items, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        status: true,
+        avatarUrl: true,
+        createdAt: true,
+        _count: { select: { models: true, reviews: true } },
+      },
+      take: ADMIN_PAGE_SIZE,
+      skip: (page - 1) * ADMIN_PAGE_SIZE,
+    }),
+    prisma.user.count(),
+  ]);
+  return { items, total };
 }
 
 // cache()-wrapped: the console layout and the /admin overview page both call

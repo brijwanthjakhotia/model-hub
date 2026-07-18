@@ -1,34 +1,11 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { useFormStatus } from "react-dom";
+import { useState } from "react";
 import { Star, Trash2 } from "lucide-react";
 import { deleteModelAction, toggleFeaturedAction } from "@/actions/models";
+import { PendingButton } from "@/components/ui/pending-button";
 import { cn } from "@/lib/utils";
 import type { ModelStatusValue } from "@/lib/constants";
-
-/** Submit button that disables while its form is pending (no double-submit). */
-function PendingSubmit({
-  className,
-  title,
-  children,
-}: {
-  className?: string;
-  title?: string;
-  children: ReactNode;
-}) {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      title={title}
-      className={cn(className, pending && "cursor-not-allowed opacity-50")}
-    >
-      {children}
-    </button>
-  );
-}
 
 export function ModelRowActions({
   modelId,
@@ -48,7 +25,7 @@ export function ModelRowActions({
       {status === "APPROVED" && (
         <form action={toggleFeaturedAction}>
           <input type="hidden" name="modelId" value={modelId} />
-          <PendingSubmit
+          <PendingButton
             title={featured ? "Remove from featured" : "Mark as featured"}
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted",
@@ -59,16 +36,16 @@ export function ModelRowActions({
             <span className="sr-only">
               {featured ? `Remove ${name} from featured` : `Mark ${name} as featured`}
             </span>
-          </PendingSubmit>
+          </PendingButton>
         </form>
       )}
 
       {confirming ? (
         <form action={deleteModelAction} className="flex items-center gap-1">
           <input type="hidden" name="modelId" value={modelId} />
-          <PendingSubmit className="rounded-lg bg-danger px-2 py-1 text-xs font-medium text-danger-foreground">
+          <PendingButton className="rounded-lg bg-danger px-2 py-1 text-xs font-medium text-danger-foreground">
             Delete
-          </PendingSubmit>
+          </PendingButton>
           <button
             type="button"
             onClick={() => setConfirming(false)}

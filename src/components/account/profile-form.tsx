@@ -1,10 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
+import { useActionState, useState } from "react";
 import { updateProfileAction } from "@/actions/account";
 import type { AuthState } from "@/actions/auth";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Field, Input } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 
@@ -17,6 +16,14 @@ export function ProfileForm({
 }) {
   const [state, formAction] = useActionState(updateProfileAction, initial);
   const values = state.values ?? defaults;
+  // Track the email field so we can ask for the current password only when the
+  // email is actually being changed (the server requires it for an email change).
+  const [email, setEmail] = useState(values.email);
+  // Compare against the last *saved* email: after a successful change the layout
+  // isn't re-rendered with new `defaults`, so use the just-saved value to avoid
+  // demanding the password again on a later name-only save.
+  const savedEmail = state.success && state.values?.email ? state.values.email : defaults.email;
+  const emailChanged = email.trim().toLowerCase() !== savedEmail.toLowerCase();
 
   return (
     <form action={formAction} className="space-y-4">
@@ -37,6 +44,7 @@ export function ProfileForm({
           type="email"
           autoComplete="email"
           defaultValue={values.email}
+          onChange={(e) => setEmail(e.target.value)}
           required
         />
       </Field>
@@ -56,19 +64,32 @@ export function ProfileForm({
         />
       </Field>
 
+      {emailChanged && (
+        <Field
+          label="Current password"
+          htmlFor="currentPassword"
+          required
+          hint="Confirm your current password to change your email."
+          error={state.fieldErrors?.currentPassword}
+        >
+          <Input
+            id="currentPassword"
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            required
+          />
+        </Field>
+      )}
+
       <FormMessage>{state.error}</FormMessage>
       <FormMessage tone="success">{state.success}</FormMessage>
 
-      <SubmitButton />
+      <SubmitButton pendingText="Saving…">
+        Save changes
+      </SubmitButton>
     </form>
   );
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save changes"}
-    </Button>
-  );
-}

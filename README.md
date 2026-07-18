@@ -106,9 +106,11 @@ the login gate.
 | `npm run start`   | Start the production server                         |
 | `npm run typecheck` | Type-check with `tsc --noEmit`                    |
 | `npm run lint`    | Lint with ESLint (`next/core-web-vitals`)          |
-| `npm run db:push` | Sync the Prisma schema to SQLite                   |
+| `npm run db:push` | Sync the Prisma schema to SQLite (quick prototyping)|
+| `npm run db:migrate` | Create + apply a migration (`prisma migrate dev`)|
+| `npm run db:deploy` | Apply migrations in production (`migrate deploy`) |
 | `npm run db:seed` | Seed users, models and reviews                     |
-| `npm run db:reset`| Wipe + recreate + re-seed the database             |
+| `npm run db:reset`| Reset the DB, re-apply migrations, and re-seed     |
 | `npm run db:studio` | Open Prisma Studio                               |
 | `npm test`        | Run the unit/component test suite                  |
 | `npm run test:watch` | Run tests in watch mode                         |
@@ -129,8 +131,8 @@ password reset, models, reviews, members, admins), the auth **guards** and the
 **middleware** — ~95% line / ~84% branch coverage across that measured surface —
 plus component tests. See [docs/testing.md](docs/testing.md) for details.
 
-Continuous integration runs `typecheck → lint → test` on every push/PR (see
-[.github/workflows/ci.yml](.github/workflows/ci.yml)).
+Continuous integration runs `typecheck → lint → test → build` on every push/PR
+(see [.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
 ## Documentation
 

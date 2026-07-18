@@ -224,6 +224,20 @@ describe("adminLoginAction", () => {
     expect(createAdminSession).not.toHaveBeenCalled();
   });
 
+  it("counts a failed admin login on a wrong password (known admin)", async () => {
+    prisma.admin.findUnique.mockResolvedValueOnce({
+      id: "a1",
+      name: "Owner",
+      email: "super@example.com",
+      passwordHash: await bcrypt.hash(password, 10),
+      role: "SUPER_ADMIN",
+    });
+    const state = await adminLoginAction({}, form({ email: "super@example.com", password: "wrong" }));
+    expect(state.error).toBe("Invalid email or password.");
+    expect(createAdminSession).not.toHaveBeenCalled();
+    expect(rateLimit).toHaveBeenCalled(); // failure counted
+  });
+
   it("rate-limits repeated admin attempts (peek gate)", async () => {
     peekRateLimit.mockReturnValueOnce({ ok: false, retryAfterSec: 120 });
     const state = await adminLoginAction({}, form({ email: "super@example.com", password }));
