@@ -91,7 +91,9 @@ export async function decideModelAction(formData: FormData) {
   const parsed = reviewDecisionSchema.safeParse({
     modelId: formData.get("modelId"),
     decision: formData.get("decision"),
-    note: formData.get("note"),
+    // The approve form sends no note field; FormData.get returns null, which the
+    // schema (string | undefined | "") rejects. Normalise the absent value.
+    note: formData.get("note") ?? undefined,
   });
   if (!parsed.success) {
     throw new Error("Invalid decision payload");
