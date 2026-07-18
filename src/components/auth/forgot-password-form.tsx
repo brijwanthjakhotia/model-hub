@@ -1,10 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import { requestPasswordResetAction } from "@/actions/password-reset";
 import type { AuthState } from "@/actions/auth";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Field, Input } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 
@@ -30,16 +29,10 @@ export function ForgotPasswordForm() {
       <FormMessage>{state.error}</FormMessage>
       <FormMessage tone="success">{state.success}</FormMessage>
 
-      <SubmitButton />
+      <SubmitButton pendingText="Sending…" className="w-full">
+        Send reset link
+      </SubmitButton>
     </form>
   );
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Sending…" : "Send reset link"}
-    </Button>
-  );
-}

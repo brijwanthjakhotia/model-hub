@@ -1,9 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import { createAdminAction, type AdminFormState } from "@/actions/admins";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { ADMIN_ROLES, ADMIN_ROLE_META } from "@/lib/constants";
@@ -73,16 +72,10 @@ export function CreateAdminForm() {
       <FormMessage>{state.error}</FormMessage>
       <FormMessage tone="success">{state.success}</FormMessage>
 
-      <SubmitButton />
+      <SubmitButton pendingText="Creating…">
+        Create admin
+      </SubmitButton>
     </form>
   );
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Creating…" : "Create admin"}
-    </Button>
-  );
-}

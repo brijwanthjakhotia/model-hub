@@ -1,10 +1,9 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
 import { Star } from "lucide-react";
 import { addReviewAction, type ReviewState } from "@/actions/reviews";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Field, FieldError, Input, Textarea } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { cn } from "@/lib/utils";
@@ -120,16 +119,10 @@ export function ReviewForm({ modelId }: { modelId: string }) {
 
       <FormMessage>{state.error}</FormMessage>
 
-      <SubmitButton />
+      <SubmitButton pendingText="Publishing…" className="w-full sm:w-auto">
+        Publish review
+      </SubmitButton>
     </form>
   );
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-      {pending ? "Publishing…" : "Publish review"}
-    </Button>
-  );
-}

@@ -1,10 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { useFormStatus } from "react-dom";
 import { changePasswordAction } from "@/actions/account";
 import type { AuthState } from "@/actions/auth";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Field, Input } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 
@@ -73,16 +72,10 @@ export function ChangePasswordForm() {
       <FormMessage>{state.error}</FormMessage>
       <FormMessage tone="success">{state.success}</FormMessage>
 
-      <SubmitButton />
+      <SubmitButton pendingText="Updating…">
+        Change password
+      </SubmitButton>
     </form>
   );
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Updating…" : "Change password"}
-    </Button>
-  );
-}
