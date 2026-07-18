@@ -18,6 +18,7 @@ export default async function LoginPage({
   const next = safeRedirect(sp.next);
   const justRegistered = sp.registered === "pending";
   const blocked = sp.blocked === "1";
+  const passwordReset = sp.reset === "1";
   const session = await getCurrentUser();
   if (session) {
     // Only bounce genuinely-ACTIVE members away from the form. A member whose
@@ -64,6 +65,15 @@ export default async function LoginPage({
             <p className="mt-0.5">
               Your account is no longer active. Sign in again or contact support
               if you think this is a mistake.
+            </p>
+          </div>
+        )}
+
+        {passwordReset && (
+          <div role="status" className="mb-4 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success">
+            <p className="font-medium">Password updated.</p>
+            <p className="mt-0.5 text-success/90">
+              Your password has been reset — sign in with your new password.
             </p>
           </div>
         )}

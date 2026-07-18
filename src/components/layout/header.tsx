@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   Plus,
+  Settings,
   Shield,
   Sparkles,
   X,
@@ -127,6 +128,9 @@ export function Header({
                   <MenuLink href="/submit" icon={Plus} onClick={() => setMenuOpen(false)}>
                     Submit talent
                   </MenuLink>
+                  <MenuLink href="/account" icon={Settings} onClick={() => setMenuOpen(false)}>
+                    Account settings
+                  </MenuLink>
                   {isAdmin && (
                     <MenuLink href="/admin" icon={Shield} onClick={() => setMenuOpen(false)}>
                       Admin console
@@ -197,6 +201,9 @@ export function Header({
                 </MobileLink>
                 <MobileLink href="/submit" icon={Plus} onClick={() => setMobileOpen(false)}>
                   Submit talent
+                </MobileLink>
+                <MobileLink href="/account" icon={Settings} onClick={() => setMobileOpen(false)}>
+                  Account settings
                 </MobileLink>
                 {isAdmin && (
                   <MobileLink href="/admin" icon={Shield} onClick={() => setMobileOpen(false)}>

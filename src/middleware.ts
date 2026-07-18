@@ -10,7 +10,7 @@ const ADMIN_PREFIX = "/admin";
 const ADMIN_LOGIN = "/admin/login";
 /** Admin routes that require the SUPER_ADMIN role (not just any admin). */
 const SUPER_ADMIN_PREFIXES = ["/admin/admins"];
-const USER_AUTH_REQUIRED = ["/submit", "/dashboard"];
+const USER_AUTH_REQUIRED = ["/submit", "/dashboard", "/account"];
 
 const matches = (pathname: string, prefix: string) =>
   pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -53,5 +53,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/submit/:path*", "/dashboard/:path*"],
+  matcher: ["/admin/:path*", "/submit/:path*", "/dashboard/:path*", "/account/:path*"],
 };

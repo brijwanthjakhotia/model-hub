@@ -120,6 +120,15 @@ describe("decideModelAction", () => {
     expect(arg.data.reviewedById).toBe("a1");
   });
 
+  it("approves when no note field is sent (the real approve form omits it)", async () => {
+    // The approve form has no note input, so FormData.get('note') is null.
+    prisma.model.update.mockResolvedValueOnce({ slug: "casey-newface" });
+    await decideModelAction(form({ modelId: "m1", decision: "APPROVED" }));
+    const arg = prisma.model.update.mock.calls[0][0];
+    expect(arg.data.status).toBe("APPROVED");
+    expect(arg.data.reviewNote).toBeNull();
+  });
+
   it("throws on an invalid decision", async () => {
     await expect(
       decideModelAction(form({ modelId: "m1", decision: "MAYBE" })),
