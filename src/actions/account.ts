@@ -126,17 +126,18 @@ export async function changePasswordAction(
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
-  // Bump tokenVersion to invalidate every other outstanding session; re-issue
-  // THIS session below so the current device stays signed in.
-  const updated = await prisma.user.update({
-    where: { id: user.id },
-    data: { passwordHash, tokenVersion: { increment: 1 } },
-    select: { tokenVersion: true },
-  });
-
-  // Belt-and-braces: invalidate any outstanding password-reset tokens now that
-  // the password has changed by other means.
-  await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+  // Atomically: set the new hash, bump tokenVersion (invalidates every other
+  // outstanding session), and clear any outstanding reset tokens — so the
+  // invalidation can never be left half-applied. This session is re-issued
+  // below with the new tokenVersion so the current device stays signed in.
+  const [updated] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+      select: { tokenVersion: true },
+    }),
+    prisma.passwordResetToken.deleteMany({ where: { userId: user.id } }),
+  ]);
 
   await createSession({
     id: user.id,

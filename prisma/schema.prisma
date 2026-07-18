@@ -50,7 +50,8 @@ model User {
   reviews             Review[]
   passwordResetTokens PasswordResetToken[]
 
-  @@index([status])
+  @@index([status]) // getAdminStats: count PENDING members
+  @@index([createdAt]) // admin members list (ordered createdAt desc)
 }
 
 /// Single-use, time-limited tokens for the "forgot password" flow. Only the
@@ -132,11 +133,12 @@ model Model {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([status])
-  @@index([category])
-  @@index([status, ratingAvg]) // gallery: APPROVED filter + top-rated/featured sort
-  @@index([status, featured]) // featured landing cards
-  @@index([status, category]) // gallery category filter
+  // status-only filters/counts are served by the [status, *] composites below
+  // (status is the leftmost column); category is only ever queried with status.
+  @@index([status, ratingAvg]) // gallery: APPROVED filter + top-rated sort
+  @@index([status, featured]) // featured landing cards + default sort
+  @@index([status, category]) // gallery category filter + getCategoryCounts
+  @@index([createdAt]) // admin roster (no filter, ordered createdAt desc)
   @@index([submittedById]) // dashboard "my submissions" + per-member counts
   @@index([reviewedById]) // approval audit lookups + SET NULL on admin delete
 }
@@ -156,4 +158,5 @@ model Review {
 
   @@unique([modelId, authorId]) // one review per user per model; also indexes modelId (leftmost)
   @@index([authorId]) // per-author counts + cascade on user delete
+  @@index([modelId, createdAt]) // a model's reviews, newest first (profile page)
 }

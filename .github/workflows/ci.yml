@@ -23,3 +23,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # Catches Next-specific build failures (RSC/client boundaries, metadata,
+      # static generation) that tsc/vitest don't. All routes are dynamic, so no
+      # DB seed is needed at build time.
+      - run: npm run build

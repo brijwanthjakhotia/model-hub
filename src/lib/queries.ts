@@ -120,6 +120,9 @@ export const getModelBySlug = cache(async (slug: string) => {
     include: {
       reviews: {
         orderBy: { createdAt: "desc" },
+        // Bound the nested read: show the newest reviews (the ratingAvg/ratingCount
+        // cache already drives the summary). A "load more" is a future follow-up.
+        take: 50,
         include: { author: { select: { id: true, name: true, avatarUrl: true } } },
       },
       submittedBy: { select: { id: true, name: true } },
@@ -136,6 +139,9 @@ export const getModelForAdmin = cache(async (id: string) => {
     include: {
       reviews: {
         orderBy: { createdAt: "desc" },
+        // Bound the nested read: show the newest reviews (the ratingAvg/ratingCount
+        // cache already drives the summary). A "load more" is a future follow-up.
+        take: 50,
         include: { author: { select: { id: true, name: true, avatarUrl: true } } },
       },
       submittedBy: { select: { id: true, name: true, email: true } },

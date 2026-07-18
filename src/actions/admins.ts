@@ -6,13 +6,11 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/auth";
 import { createAdminSchema } from "@/lib/validations";
+import type { AuthState } from "@/actions/auth";
 
-export type AdminFormState = {
-  error?: string;
-  success?: string;
-  fieldErrors?: Record<string, string[]>;
-  values?: Record<string, string>;
-};
+/** Same shape as AuthState (error/success/fieldErrors/values) — kept as a named
+ *  alias so admin form code reads clearly. */
+export type AdminFormState = AuthState;
 
 export async function createAdminAction(
   _prev: AdminFormState,

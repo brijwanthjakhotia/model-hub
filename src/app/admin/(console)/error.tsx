@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 export default function AdminConsoleError({
   error,
   reset,
@@ -7,6 +9,11 @@ export default function AdminConsoleError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Log for diagnostics; we deliberately don't surface error.message (see below).
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
     <div className="card-surface p-8 text-center">
       <h2 className="text-lg font-semibold">That action couldn&apos;t be completed</h2>
