@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   Plus,
+  Settings,
   Shield,
   Sparkles,
   X,
@@ -35,6 +36,27 @@ export function Header({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the account menu on outside click or Escape. (Using onBlur to close
+  // races with — and can swallow — a click on a menu item, so it lives here.)
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onPointerDown(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-lg">
@@ -79,10 +101,11 @@ export function Header({
           <ThemeToggle className="hidden sm:inline-flex" />
 
           {user ? (
-            <div className="relative hidden md:block">
+            <div className="relative hidden md:block" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                onBlur={() => setTimeout(() => setMenuOpen(false), 150)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
                 className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-muted focus-ring"
               >
                 <Avatar name={user.name} size={32} />
@@ -99,14 +122,17 @@ export function Header({
                     </p>
                   </div>
                   <div className="my-1 h-px bg-border" />
-                  <MenuLink href="/dashboard" icon={LayoutDashboard}>
+                  <MenuLink href="/dashboard" icon={LayoutDashboard} onClick={() => setMenuOpen(false)}>
                     My submissions
                   </MenuLink>
-                  <MenuLink href="/submit" icon={Plus}>
+                  <MenuLink href="/submit" icon={Plus} onClick={() => setMenuOpen(false)}>
                     Submit talent
                   </MenuLink>
+                  <MenuLink href="/account" icon={Settings} onClick={() => setMenuOpen(false)}>
+                    Account settings
+                  </MenuLink>
                   {isAdmin && (
-                    <MenuLink href="/admin" icon={Shield}>
+                    <MenuLink href="/admin" icon={Shield} onClick={() => setMenuOpen(false)}>
                       Admin console
                     </MenuLink>
                   )}
@@ -176,6 +202,9 @@ export function Header({
                 <MobileLink href="/submit" icon={Plus} onClick={() => setMobileOpen(false)}>
                   Submit talent
                 </MobileLink>
+                <MobileLink href="/account" icon={Settings} onClick={() => setMobileOpen(false)}>
+                  Account settings
+                </MobileLink>
                 {isAdmin && (
                   <MobileLink href="/admin" icon={Shield} onClick={() => setMobileOpen(false)}>
                     Admin console
@@ -215,15 +244,18 @@ export function Header({
 function MenuLink({
   href,
   icon: Icon,
+  onClick,
   children,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  onClick?: () => void;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
     >
       <Icon className="h-4 w-4 text-muted-foreground" />

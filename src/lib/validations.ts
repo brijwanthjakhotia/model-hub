@@ -26,6 +26,52 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+/** Fields a signed-in member may edit on their own account. */
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(60),
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  avatarUrl: z
+    .string()
+    .trim()
+    .url("Must be a valid URL")
+    .max(500)
+    .optional()
+    .or(z.literal("")),
+});
+
+/** Change password while signed in: verify current, set a new one. */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password"),
+    newPassword: z.string().min(8, "Password must be at least 8 characters").max(100),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .refine((d) => d.newPassword !== d.currentPassword, {
+    message: "New password must be different from your current one",
+    path: ["newPassword"],
+  });
+
+/** "Forgot password" request — just an email to send the reset link to. */
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+});
+
+/** Complete a reset with a token from the emailed link. */
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1),
+    password: z.string().min(8, "Password must be at least 8 characters").max(100),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 /** Payload for an admin changing a member's account status. */
 export const userStatusSchema = z.object({
   userId: z.string().min(1),

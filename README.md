@@ -21,6 +21,10 @@ Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**,
   editable); the model's average rating is kept in sync automatically.
 - **Submission flow** — a multi-section form to submit new talent; submissions
   start as `PENDING`.
+- **Account settings & security** — signed-in members manage their profile
+  (name, email, avatar) and change their password from **Account settings**; a
+  **forgot-password** flow emails a single-use, 1-hour reset link. Only the
+  SHA-256 hash of each reset token is stored.
 - **Admin approval workflow** — an admin console with an overview dashboard,
   an approval queue (approve / reject with a note), and a full roster table
   (feature toggle, delete).
@@ -66,6 +70,12 @@ Then open <http://localhost:3000>.
 > The `.env` file ships with a working `DATABASE_URL` and a development
 > `AUTH_SECRET`. Replace `AUTH_SECRET` with a strong value before deploying
 > (`openssl rand -base64 32`).
+
+> **Email (password reset).** The forgot-password flow sends a reset link by
+> email. Configure SMTP via the `SMTP_*` / `MAIL_FROM` variables in `.env` to
+> send real mail. If `SMTP_HOST` is left unset (the default for local dev), the
+> email — including the reset link — is **printed to the server console**
+> instead, so you can test the whole flow with no mail server.
 
 ### Demo accounts
 

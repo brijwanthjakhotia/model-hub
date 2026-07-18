@@ -15,3 +15,9 @@ export function statusLoginMessage(status: string): string {
       return "Your account has been suspended. Please contact support.";
   }
 }
+
+/** Friendly "slow down" message for a tripped rate limit. */
+export function tooManyMsg(retryAfterSec: number): string {
+  const mins = Math.max(1, Math.ceil(retryAfterSec / 60));
+  return `Too many attempts. Please try again in about ${mins} minute${mins === 1 ? "" : "s"}.`;
+}
