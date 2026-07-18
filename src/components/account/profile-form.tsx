@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { updateProfileAction } from "@/actions/account";
 import type { AuthState } from "@/actions/auth";
@@ -17,6 +17,10 @@ export function ProfileForm({
 }) {
   const [state, formAction] = useActionState(updateProfileAction, initial);
   const values = state.values ?? defaults;
+  // Track the email field so we can ask for the current password only when the
+  // email is actually being changed (the server requires it for an email change).
+  const [email, setEmail] = useState(values.email);
+  const emailChanged = email.trim().toLowerCase() !== defaults.email.toLowerCase();
 
   return (
     <form action={formAction} className="space-y-4">
@@ -37,6 +41,7 @@ export function ProfileForm({
           type="email"
           autoComplete="email"
           defaultValue={values.email}
+          onChange={(e) => setEmail(e.target.value)}
           required
         />
       </Field>
@@ -55,6 +60,25 @@ export function ProfileForm({
           defaultValue={values.avatarUrl}
         />
       </Field>
+
+      {emailChanged && (
+        <Field
+          label="Current password"
+          htmlFor="currentPassword"
+          required
+          hint="Confirm your current password to change your email."
+          error={state.fieldErrors?.currentPassword}
+        >
+          <Input
+            id="currentPassword"
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            required
+          />
+        </Field>
+      )}
 
       <FormMessage>{state.error}</FormMessage>
       <FormMessage tone="success">{state.success}</FormMessage>
