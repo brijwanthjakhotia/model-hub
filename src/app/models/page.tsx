@@ -89,7 +89,8 @@ export default async function ModelsPage({
           category: filters.category,
           gender: filters.gender,
           experience: filters.experience,
-          sort: rawSort,
+          // validated sort; omit the default so first-page URLs stay clean
+          sort: filters.sort === "featured" ? undefined : filters.sort,
         }}
       />
     </div>

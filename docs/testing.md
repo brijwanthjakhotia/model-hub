@@ -58,7 +58,7 @@ test/
 ├── actions-models.test.ts         # create / decide / feature / delete
 ├── actions-reviews.test.ts        # review upsert + rating recompute
 └── components/
-    └── ui-components.test.tsx      # RatingStars, StatusBadge, Badge (jsdom)
+    └── ui-components.test.tsx      # RatingStars, StatusBadge, Badge, SubmitButton, PendingButton, Pagination (jsdom)
 ```
 
 Node is the default environment. Component test files opt into a DOM by adding a
@@ -70,11 +70,11 @@ docblock at the very top of the file:
 
 ## Coverage
 
-Current suite: **200+ tests**. Coverage is measured across the security-critical
+Current suite: **220+ tests**. Coverage is measured across the security-critical
 surface — the `lib` layer (including the `mailer`), **every server action**
 (auth incl. logout, account, password reset, models, reviews, members, admins),
 and the **middleware** — not just the pure helpers, so the headline number
-reflects reality (roughly **95% lines / ~84% branch**). `session.ts`,
+reflects reality (roughly **97% lines / ~86% branch**). `session.ts`,
 `constants.ts`, `utils.ts`, `validations.ts`, `auth-messages.ts`, `mailer.ts`
 and `middleware.ts` sit at/near 100%; the remainder is cookie setters and the
 header-parsing half of `rate-limit.ts`. Run `npm run test:coverage` for the
@@ -121,9 +121,9 @@ exact, current per-file table.
 `lib/queries.ts` (pure Prisma query shapes, no branching) and the Prisma client
 singleton are excluded and exercised through **end-to-end verification** instead
 (login sets a cookie and redirects; a suspended member / deleted admin is cut off
-on the next request; approving a pending model flips its status). `clientIp`'s
-trusted-proxy branch and the cookie setters lean on the Next.js request context;
-the rest of that surface is now unit-tested with light mocks.
+on the next request; approving a pending model flips its status). `clientIp`
+(including the trusted-proxy `X-Forwarded-For` branch) and `peekRateLimit` are
+now unit-tested; the cookie setters lean on the Next.js request context.
 
 ## A bug the tests caught
 

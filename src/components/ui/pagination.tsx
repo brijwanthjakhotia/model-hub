@@ -62,6 +62,7 @@ export function Pagination({
         <Link
           key={p}
           href={href(p)}
+          aria-label={`Go to page ${p}`}
           aria-current={p === current ? "page" : undefined}
           className={cn(
             linkBase,

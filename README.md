@@ -125,10 +125,10 @@ npm test              # run once
 npm run test:coverage # with coverage report
 ```
 
-The suite has **200+ tests** covering the `lib` layer (utilities, Zod validation,
+The suite has **220+ tests** covering the `lib` layer (utilities, Zod validation,
 JWT session crypto, rate limiter, mailer), the **server actions** (auth, account,
 password reset, models, reviews, members, admins), the auth **guards** and the
-**middleware** — ~95% line / ~84% branch coverage across that measured surface —
+**middleware** — ~97% line / ~86% branch coverage across that measured surface —
 plus component tests. See [docs/testing.md](docs/testing.md) for details.
 
 Continuous integration runs `typecheck → lint → test → build` on every push/PR

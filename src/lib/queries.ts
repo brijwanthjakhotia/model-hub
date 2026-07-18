@@ -85,6 +85,24 @@ export function toPage(raw: unknown): number {
 
 export type Paginated<T> = { items: T[]; total: number };
 
+/**
+ * Run a paginated read: count first, clamp the requested page to the last real
+ * page (so an out-of-range `?page=N` shows the last page's items rather than an
+ * empty view), then fetch that slice.
+ */
+async function paginate<T>(
+  page: number,
+  size: number,
+  count: () => Promise<number>,
+  find: (skip: number) => Promise<T[]>,
+): Promise<Paginated<T>> {
+  const total = await count();
+  const totalPages = Math.max(1, Math.ceil(total / size));
+  const clamped = Math.min(Math.max(1, page), totalPages);
+  const items = await find((clamped - 1) * size);
+  return { items, total };
+}
+
 export async function getApprovedModels(
   filters: GalleryFilters = {},
   page = 1,
@@ -107,17 +125,19 @@ export async function getApprovedModels(
   }
   if (filters.experience) where.experience = filters.experience;
 
-  const [items, total] = await prisma.$transaction([
-    prisma.model.findMany({
-      where,
-      orderBy: buildOrderBy(filters.sort),
-      select: cardSelect,
-      take: GALLERY_PAGE_SIZE,
-      skip: (page - 1) * GALLERY_PAGE_SIZE,
-    }),
-    prisma.model.count({ where }),
-  ]);
-  return { items, total };
+  return paginate(
+    page,
+    GALLERY_PAGE_SIZE,
+    () => prisma.model.count({ where }),
+    (skip) =>
+      prisma.model.findMany({
+        where,
+        orderBy: buildOrderBy(filters.sort),
+        select: cardSelect,
+        take: GALLERY_PAGE_SIZE,
+        skip,
+      }),
+  );
 }
 
 export async function getFeaturedModels(take = 3) {
@@ -199,68 +219,109 @@ export async function getCategoryCounts() {
   }, {});
 }
 
-export async function getPendingModels() {
-  return prisma.model.findMany({
-    where: { status: "PENDING" },
-    orderBy: { createdAt: "asc" },
-    // Only the columns ApprovalCard renders — avoids shipping unused stats.
-    select: {
-      id: true,
-      name: true,
-      category: true,
-      location: true,
-      heightCm: true,
-      experience: true,
-      bio: true,
-      headshotUrl: true,
-      gallery: true,
-      instagram: true,
-      createdAt: true,
-      submittedBy: { select: { name: true, email: true } },
-    },
-  });
+export async function getPendingModels(page = 1) {
+  const where = { status: "PENDING" as const };
+  return paginate(
+    page,
+    ADMIN_PAGE_SIZE,
+    () => prisma.model.count({ where }),
+    (skip) =>
+      prisma.model.findMany({
+        where,
+        orderBy: { createdAt: "asc" },
+        // Only the columns ApprovalCard renders — avoids shipping unused stats.
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          location: true,
+          heightCm: true,
+          experience: true,
+          bio: true,
+          headshotUrl: true,
+          gallery: true,
+          instagram: true,
+          createdAt: true,
+          submittedBy: { select: { name: true, email: true } },
+        },
+        take: ADMIN_PAGE_SIZE,
+        skip,
+      }),
+  );
 }
 
 export async function getAllModelsForAdmin(page = 1) {
-  const [items, total] = await prisma.$transaction([
-    prisma.model.findMany({
-      orderBy: [{ createdAt: "desc" }],
-      select: adminRowSelect,
-      take: ADMIN_PAGE_SIZE,
-      skip: (page - 1) * ADMIN_PAGE_SIZE,
-    }),
-    prisma.model.count(),
-  ]);
-  return { items, total };
+  return paginate(
+    page,
+    ADMIN_PAGE_SIZE,
+    () => prisma.model.count(),
+    (skip) =>
+      prisma.model.findMany({
+        orderBy: [{ createdAt: "desc" }],
+        select: adminRowSelect,
+        take: ADMIN_PAGE_SIZE,
+        skip,
+      }),
+  );
 }
 
-export async function getUserSubmissions(userId: string) {
-  return prisma.model.findMany({
+export async function getUserSubmissions(userId: string, page = 1) {
+  const where = { submittedById: userId };
+  return paginate(
+    page,
+    ADMIN_PAGE_SIZE,
+    () => prisma.model.count({ where }),
+    (skip) =>
+      prisma.model.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        select: submissionRowSelect,
+        take: ADMIN_PAGE_SIZE,
+        skip,
+      }),
+  );
+}
+
+/** Status counts for a member's own submissions (dashboard stat tiles) —
+ *  independent of the current page. */
+export async function getUserSubmissionCounts(userId: string) {
+  const grouped = await prisma.model.groupBy({
+    by: ["status"],
     where: { submittedById: userId },
-    orderBy: { createdAt: "desc" },
-    select: submissionRowSelect,
+    _count: { _all: true },
   });
+  const by = grouped.reduce<Record<string, number>>((acc, g) => {
+    acc[g.status] = g._count._all;
+    return acc;
+  }, {});
+  return {
+    total: Object.values(by).reduce((a, b) => a + b, 0),
+    approved: by.APPROVED ?? 0,
+    pending: by.PENDING ?? 0,
+  };
 }
 
 export async function getMembers(page = 1) {
-  const [items, total] = await prisma.$transaction([
-    prisma.user.findMany({
-      orderBy: [{ createdAt: "desc" }],
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        status: true,
-        avatarUrl: true,
-        createdAt: true,
-        _count: { select: { models: true, reviews: true } },
-      },
-      take: ADMIN_PAGE_SIZE,
-      skip: (page - 1) * ADMIN_PAGE_SIZE,
-    }),
-    prisma.user.count(),
-  ]);
-  return { items, total };
+  return paginate(
+    page,
+    ADMIN_PAGE_SIZE,
+    () => prisma.user.count(),
+    (skip) =>
+      prisma.user.findMany({
+        orderBy: [{ createdAt: "desc" }],
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          status: true,
+          avatarUrl: true,
+          createdAt: true,
+          _count: { select: { models: true, reviews: true } },
+        },
+        take: ADMIN_PAGE_SIZE,
+        skip,
+      }),
+  );
 }
 
 // cache()-wrapped: the console layout and the /admin overview page both call

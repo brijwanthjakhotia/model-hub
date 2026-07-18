@@ -20,9 +20,9 @@ export const metadata: Metadata = { title: "Admin overview" };
 export default async function AdminOverviewPage() {
   // Page-level re-check (the layout guard doesn't re-run on soft navigations).
   await requireAdmin();
-  const [stats, pending] = await Promise.all([
+  const [stats, { items: pending }] = await Promise.all([
     getAdminStats(),
-    getPendingModels(),
+    getPendingModels(), // first page; the overview only previews the top few
   ]);
 
   const cards = [

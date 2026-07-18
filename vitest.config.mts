@@ -19,10 +19,11 @@ export default defineConfig({
       // Cover the security-critical surface too — lib, server actions and the
       // middleware — not just the pure helpers, so the number reflects reality.
       include: ["src/lib/**/*.ts", "src/actions/**/*.ts", "src/middleware.ts"],
-      // Excluded: the Prisma client singleton (trivial) and the read/query layer
-      // (pure DB-query shapes with no branching logic, exercised by runtime
-      // checks rather than unit tests).
-      exclude: ["src/lib/prisma.ts", "src/lib/queries.ts"],
+      // Excluded: the Prisma client singleton (trivial); the read/query layer
+      // (mostly DB-query shapes exercised via runtime/e2e — its one branching
+      // helper, `toPage`, is unit-tested in test/queries.test.ts); and the
+      // type-only form-state module (no runtime code).
+      exclude: ["src/lib/prisma.ts", "src/lib/queries.ts", "src/lib/form-state.ts"],
     },
   },
   esbuild: {
